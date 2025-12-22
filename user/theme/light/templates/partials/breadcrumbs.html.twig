@@ -1,0 +1,8 @@
+<nav class="breadcrumbs" aria-label="breadcrumbs">
+    <ol>
+        <li><a href="/">Domu</a></li>
+        {% for crumb in page.breadcrumbs %}
+        <li class="{{ 'active' if loop.last }}"><a href="{{ crumb.url }}" aria-current="page">{{ crumb.title }}</a></li>
+        {% endfor %}
+    </ol>
+</nav>

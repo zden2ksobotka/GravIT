@@ -1,0 +1,143 @@
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <title>{{ page.title }}</title>
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+        
+        <link rel="stylesheet" href="/{{ theme_path }}/css/atom-one-dark.min.css">
+        <link rel="stylesheet" href="/{{ theme_path }}/css/skeleton.css">
+        <link rel="stylesheet" href="/{{ theme_path }}/css/font-awesome.min.css">
+        <link rel="stylesheet" href="/{{ theme_path }}/css/style.css">
+        
+        <!-- Plugin CSS -->
+        {% for css_file in plugins.css -%}
+            <link rel="stylesheet" href="{{ css_file }}">
+        {% endfor %}
+    </head>
+    <body>
+
+{% include 'partials/header.html.twig' %}
+
+        <div class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <a href="/" class="site-brand">{{ site_name }}</a>
+                <button class="sidebar-close" id="sidebar-close">
+                    ✕
+                </button>
+            </div>
+            <div class="sidebar-nav">
+                {% if current_user %}
+                    <div class="sidebar-user-info">
+                        <a href="/logout" class="nav-item">Logout</a>
+                        (<a href="/profile" class="nav-item">{{ current_user.fullname }}</a>)
+                    </div>
+                {%- else -%}
+                    <a href="/login" class="nav-item">Login</a>
+                {% endif %}
+                {%- if 'search' in active_plugin_names -%}
+                    <a id="search-toggle-sidebar" class="nav-item" href="#">Search</a>
+                {%- endif %}
+                <ul>
+                {%- for item in main_navigation %}
+                    <li>
+                        {%- if item.url == '#' -%}
+                            <span class="nav-item container-item">{{ item.title }}</span>
+                        {%- else -%}
+                            <a href="{{ item.url }}" class="nav-item">{{ item.title }}</a>
+                        {%- endif -%}
+                    </li>
+                {%- endfor %}
+                </ul>
+            </div>
+        </div>
+
+        <div class="sidebar-overlay" id="sidebar-overlay">
+        </div>
+
+        <div class="main-content-wrapper">
+            <div class="container">
+                {% if page.hero is defined and theme.sections.hero.enabled and page.hero.enabled %}
+                    {% include 'partials/hero.html.twig' %}
+                {%- endif -%}
+                <div class="content-columns">
+                    <div class="main-column">
+                        <main class="content-panel">
+                            <nav class="breadcrumbs" id="page-breadcrumbs">
+                                <ol>
+                                    <li><a href="/">Home</a></li>
+                                    {% for crumb in page.breadcrumbs %}
+                                    {%- if crumb.title %}
+                                    <li class="{{ 'active' if loop.last }}"><a href="{{ crumb.url }}" aria-current="page">{{ crumb.title }}</a></li>
+                                    {%- endif %}
+                                    {%- endfor %}
+                                </ol>
+                            </nav>
+                            <!--- START PAGE CONTENT --->
+                            {% block page_content %}
+                            <div id="page-content" class="page-content">
+<!--- START CUSTOM SITE CONTENT --->
+{# Check if the toc_class was set in the backend #}
+{%- if page.toc_class is defined and page.toc_class -%}
+    {# The Markdown content already contains the TOC div with the correct classes. We just need to wrap it if a custom style (like width) is needed. #}
+    <div style="{{ page.toc_style | default('') | safe }}">
+    {{ content | safe }}
+    </div>
+{%- else -%}
+    {{ content | safe }}
+{%- endif -%}
+
+{%- if 'author' in active_plugin_names and page.slug is defined -%}
+    {{ get_author_signature(page.slug) | safe }}
+{%- endif %}
+<!--- END CUSTOM SITE CONTENT --->
+                            </div>
+
+                            <div id="search-container" class="search-container" style="display: none;">
+                            <!--- START SEARCH CONTAINER --->
+                                <h2>Search</h2>
+                                <div class="form-group">
+                                    <div>
+                                        <input type="text" id="search-input" class="search-input" placeholder="Enter at least 3 characters (search supports regex)">
+                                    </div>
+                                </div>
+                                <div id="search-results" class="search-results">
+                                </div>
+                            <!--- END SEARCH CONTAINER --->
+                            </div>
+                            {% endblock %}
+                            <!--- END PAGE CONTENT --->
+                        </main>
+                    </div>
+                    {%- if page.sidebar is defined and page.sidebar.enabled and page.sidebar.widgets -%}
+                    <aside class="sidebar-column">
+                        {% include 'partials/sidebar.html.twig' %}
+                    </aside>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        {% if theme.sections.footer.enabled %}
+{% include 'partials/footer.html.twig' %}
+        {% endif %}
+
+        <script src="/{{ theme_path }}/js/jquery-3.6.0.min.js" defer></script>
+        <script src="/{{ theme_path }}/js/highlight.min.js" defer></script>
+        <script src="/{{ theme_path }}/js/highlight.languages.min.js" defer></script>
+        <script defer>
+            document.addEventListener('DOMContentLoaded', (event) => {
+                try {
+                    hljs.highlightAll();
+                } catch (e) {
+                    console.error("Highlight.js initialization failed:", e);
+                }
+            });
+        </script>
+        <script src="/{{ theme_path }}/js/main.js" defer></script>
+        <!-- Plugin JS -->
+        {% for js_file in plugins.js -%}
+            <script src="{{ js_file }}" defer></script>
+        {% endfor %}
+    </body>
+</html>

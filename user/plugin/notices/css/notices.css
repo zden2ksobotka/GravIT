@@ -1,0 +1,53 @@
+.notice {
+  border-left: 6px solid #f44336; /* barevný pruh vlevo */
+  background-color: #fff8f8;       /* velmi světlé pozadí */
+  color: #d32f2f;                  /* text v odstínu pruhu */
+  padding: 15px 15px;
+  margin-bottom: 15px;
+  border-radius: 3px;
+  font-family: sans-serif;
+  line-height: 1.5;
+  position: relative;
+  overflow: hidden; /* Zajišťuje správné obtékání kolem float elementů */
+}
+
+/* Varianty */
+.notice.info {
+  border-left-color: #2196F3;
+  background-color: #f5faff;
+  color: #0b69c7;
+}
+
+.notice.success {
+  border-left-color: #04AA6D;
+  background-color: #f6fffa;
+  color: #047a50;
+}
+
+.notice.warning {
+  border-left-color: #ff9800;
+  background-color: #fff8ef;
+  color: #d17a00;
+}
+
+.notice.danger {
+  border-left-color: #f44336;
+  background-color: #fff8f8;
+  color: #d32f2f;
+}
+
+.notice-closebtn {
+  float: right;
+  font-size: 22px;
+  font-weight: bold;
+  color: inherit;
+  margin-left: 15px;
+  line-height: 20px;
+  cursor: pointer;
+  transition: 0.3s;
+}
+
+.notice-closebtn:hover {
+  color: black;
+}
+

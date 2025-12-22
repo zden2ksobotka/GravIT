@@ -1,0 +1,47 @@
+{% extends "base.html.twig" %}
+
+{% block page_content %}
+    <div id="page-content" class="page-content">
+        <div class="profile-wrapper">
+            <div class="profile-box">
+                <h2 class="profile-title">User Profile</h2>
+                
+                <div class="profile-info">
+                    <p><strong>Full Name:</strong> {{ current_user.fullname }}</p>
+                    <p><strong>Email:</strong> {{ current_user.email }}</p>
+                    <p><strong>Title:</strong> {{ current_user.title }}</p>
+                </div>
+                <hr>
+                <div class="session-info">
+                    <h3 class="session-title">Session Information</h3>
+                    {% if login_time %}
+                        <p><strong>Logged in since:</strong> {{ login_time.strftime('%Y-%m-%d %H:%M:%S') }}</p>
+                    {% endif %}
+                    {% if expires_time %}
+                        <p><strong>Session expires:</strong> {{ expires_time.strftime('%Y-%m-%d %H:%M:%S') }}</p>
+                    {% endif %}
+                    {% if time_left_parts %}
+                        <p><strong>Time remaining:</strong> 
+                            {{ time_left_parts.days }} days, {{ time_left_parts.hours }} hours, {{ time_left_parts.minutes }} minutes
+                        </p>
+                    {% else %}
+                        <p>Session time information is not available.</p>
+                    {% endif %}
+                </div>
+                <div class="button-group">
+                    <a href="/" class="button-leave">Back to Home</a>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div id="search-container" class="search-container" style="display: none;">
+        <h2>Search</h2>
+        <div class="form-group">
+            <div>
+                <input type="text" id="search-input" class="search-input" placeholder="Enter search query (supports Regex)">
+            </div>
+        </div>
+        <div id="search-results" class="search-results">
+        </div>
+    </div>
+{% endblock %}

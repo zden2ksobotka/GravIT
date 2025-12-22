@@ -1,0 +1,80 @@
+/* Deklarace lokálního písma */
+@font-face {
+  font-family: 'Roboto Condensed';
+  font-style: normal;
+  font-weight: 400;
+  src: url('../fonts/RobotoCondensed-Regular.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'Roboto Condensed';
+  font-style: normal;
+  font-weight: 700;
+  src: url('../fonts/RobotoCondensed-Bold.woff2') format('woff2');
+}
+
+/* Styly pro generovaný obsah (Table of Contents) */
+.toc-container {
+    font-family: 'Roboto Condensed', sans-serif;
+    font-size: 0.9em;
+    background-color: #f9f9f9;
+    border: 1px solid #e0e0e0;
+    border-radius: 5px;
+    padding: 8px 12px;
+    margin-bottom: 22px;
+
+    /* Standalone class for floating behavior on desktops */
+    &.floating {
+        @media (min-width: 1013px) {
+            float: right;
+            max-width: 300px;
+            width: fit-content;
+            margin: 0 0 15px 20px;
+        }
+    }
+
+    /* Class to explicitly disable float */
+    &.no-float {
+        float: none;
+        width: auto;
+        max-width: none;
+        margin: 0 0 22px 0;
+    }
+}
+
+.toc-container ul {
+    list-style-type: none;
+    padding-left: 0;
+    margin-bottom: 0;
+}
+
+.toc-container li {
+    margin-bottom: 4px;
+}
+
+.toc-container a {
+    text-decoration: none;
+    color: #333;
+    font-weight: 500;
+}
+
+.toc-container a:hover {
+    color: #007bff;
+    text-decoration: underline;
+}
+
+/* Odsazení pro vnořené seznamy */
+.toc-container ul ul {
+    padding-left: 2px;
+    margin-top: 4px;
+}
+
+/* Styl pro titulek obsahu */
+.toc-title {
+    display: block;
+    font-size: 1.2em; /* Odpovídá zhruba <h3> */
+    font-weight: 1000;
+    margin-bottom: 1px;
+    padding-top: 2px;
+    padding-bottom: 4px;
+}

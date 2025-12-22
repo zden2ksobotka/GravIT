@@ -1,0 +1,13 @@
+.blog-pagination-wrapper .pagination {
+  display: flex;
+  padding: 0;
+  margin: 1.5rem 0;
+  list-style: none; }
+
+.pagination-nav {
+  display: flex;
+  justify-content: center;
+  width: 100%; }
+
+.page-item {
+  margin: 0 5px; }

@@ -1,0 +1,102 @@
+/* --- Theme-Aligned Horizontal Dropdown (v2) --- */
+
+/* Mimic the main navigation bar */
+.main-nav {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: #fff;
+    border-bottom: 1px solid #e7e7e7;
+    /*padding: 0 1rem;*/
+}
+
+.navbar-section.right {
+    display: flex;
+    align-items: center;
+}
+
+/* Wrapper for each top-level item to ensure proper spacing */
+.nav-item-wrapper {
+    display: inline-block;
+    position: relative; /* Context for submenu */
+}
+
+/* Style for the links inside top-level items */
+.nav-item-wrapper > a,
+.nav-item-wrapper > .has-submenu > a {
+    display: block;
+    color: #333;
+    text-decoration: none;
+    line-height: 1;
+}
+
+.nav-item-wrapper:hover > a,
+.nav-item-wrapper:hover > .has-submenu > a {
+    color: #333;
+}
+
+/* Remove list styling from the li wrapper */
+.has-submenu {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    padding-bottom: 10px; /* Vytvoří větší souvislou oblast pro najetí myší */
+}
+
+/* Submenu (level 1) - Default state (hidden) */
+.has-submenu .submenu {
+    visibility: hidden;
+    opacity: 0;
+    position: absolute;
+    top: 100%;
+    left: 0;
+    background: #fff;
+    border: 1px solid #e7e7e7;
+    list-style: none;
+    padding: 0.3rem 0;
+    margin-top: 3px;
+    min-width: 200px;
+    z-index: 100;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    /* Plynulý přechod pro skrývání, s malým zpožděním pro no-JS fallback */
+    transition: visibility 0.2s linear 0.1s, opacity 0.2s linear 0.1s; 
+}
+
+/* Show submenu on hover (no-JS fallback) */
+.has-submenu:hover > .submenu {
+    visibility: visible;
+    opacity: 1;
+    transition-delay: 0s; /* Okamžité zobrazení při najetí myší */
+}
+
+/* --- JavaScript Enhanced Dropdown Behavior --- */
+/* When JS is active, override hover effects and use .submenu-open class */
+body.js-active-dropdowns .has-submenu:hover > .submenu {
+    /* Disable CSS hover effect when JS is active */
+    visibility: hidden;
+    opacity: 0;
+    transition-delay: 0s;
+}
+
+body.js-active-dropdowns .has-submenu .submenu.submenu-open {
+    visibility: visible;
+    opacity: 1;
+    top: calc(100% + 10px); /* Posunuto o 10px níže pro JS-aktivní prostředí */
+    transition-delay: 0s; /* Okamžité zobrazení, když JS přidá třídu */
+    /* Plynulý přechod pro zobrazení/skrytí ovládaný JS */
+    transition: visibility 0.2s linear, opacity 0.2s linear; 
+}
+
+/* Submenu items */
+.submenu li a {
+    display: block;
+    padding: 0.5rem 1rem;
+    color: #333;
+    text-decoration: none;
+    white-space: nowrap;
+}
+
+.submenu li a:hover {
+    background: #fff;
+    color: #000;
+}

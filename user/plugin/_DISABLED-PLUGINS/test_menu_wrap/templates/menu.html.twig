@@ -1,0 +1,35 @@
+<nav role='navigation' class="menu">
+  <label for="menu">Menu <i class="fa fa-bars"></i></label>
+  <input type="checkbox" id="menu">
+  <ul>
+    <li><a href="#">Home</a></li>
+    <li class="menu-hasdropdown">
+      <a href="#">About 
+        <label title="toggle menu" for="about">
+          <i class="fa fa-caret-down"></i>
+        </label>
+      </a>
+      <input type="checkbox" id="about">
+      <ul class="menu-dropdown">
+        <li><a href="">History</a></li>
+        <li><a href="">Mission</a></li>
+        <li class="menu-hasdropdown menu-hasflyout">
+          <a href="">Services
+            <label title="toggle menu" for="services">
+              <i class="fa fa-caret-down menu-downicon"></i>
+              <i class="fa fa-caret-right menu-righticon"></i>
+            </label>        
+          </a>
+          <input type="checkbox" id="services">
+          <ul class="menu-dropdown">
+            <li><a href="">Service 1</a></li>
+            <li><a href="">Service 2</a></li>
+            <li><a href="">Service 3</a></li>
+          </ul>
+        </li>
+      </ul>
+    </li>
+    <li><a href="#">Clients</a></li>
+    <li><a href="#">Contact Us</a></li>
+  </ul>
+</nav>

@@ -1,0 +1,109 @@
+/* user/plugin/emoji/css/emoji.css */
+
+/* Default size for emojis on desktop */
+img.twemoji {
+    height: 1.8em;
+    width: 1.8em;
+    margin: 0 .05em 0 .1em;
+    vertical-align: -0.4em;
+}
+
+/* Medium screens (e.g., tablets) */
+@media screen and (max-width: 768px) {
+    img.twemoji {
+        height: 1.65em;
+        width: 1.65em;
+    }
+}
+
+/* Small screens (e.g., mobile phones) */
+@media screen and (max-width: 480px) {
+    img.twemoji {
+        height: 1.5em;
+        width: 1.5em;
+    }
+}
+
+
+/*
+ * Fix for emojis inside headings.
+ * Sets a fixed size using 'rem' to prevent them from becoming too large
+ * and adjusts vertical alignment to match the text.
+ */
+h1 .twemoji,
+h2 .twemoji,
+h3 .twemoji,
+h4 .twemoji,
+h5 .twemoji,
+/*
+ * Fix for emojis inside headings.
+ * Sets a fixed size using 'rem' to prevent them from becoming too large
+ * and adjusts vertical alignment to match the text.
+ */
+h1 .twemoji,
+h2 .twemoji,
+h3 .twemoji,
+h4 .twemoji,
+h5 .twemoji,
+h6 .twemoji {
+    height: 2rem;
+    width: 2rem;
+    vertical-align: -0.15em;
+    margin: 0 0.1em;
+}
+
+/* --- Size Modifiers (Applied via attr_list, e.g., :smile:{.emoji-size--small}) --- */
+
+/* Total Big (140% of base emoji size) */
+.emoji-size--total_big {
+    height: calc(1.8em * 1.40) !important;
+    width: calc(1.8em * 1.40) !important;
+}
+
+/* Ultra Big (130% of base emoji size) */
+.emoji-size--ultra_big {
+    height: calc(1.8em * 1.30) !important;
+    width: calc(1.8em * 1.30) !important;
+}
+
+/* Very Big (120% of base emoji size) */
+.emoji-size--very_big {
+    height: calc(1.8em * 1.20) !important;
+    width: calc(1.8em * 1.20) !important;
+}
+
+/* Big (110% of base emoji size) */
+.emoji-size--big {
+    height: calc(1.8em * 1.10) !important;
+    width: calc(1.8em * 1.10) !important;
+}
+
+/* Normal (100% of base emoji size) */
+.emoji-size--normal {
+    height: 1.8em !important;
+    width: 1.8em !important;
+}
+
+/* Small (90% of base emoji size) */
+.emoji-size--small {
+    height: calc(1.8em * 0.90) !important;
+    width: calc(1.8em * 0.90) !important;
+}
+
+/* Very Small (80% of base emoji size) */
+.emoji-size--very_small {
+    height: calc(1.8em * 0.80) !important;
+    width: calc(1.8em * 0.80) !important;
+}
+
+/* Ultra Small (70% of base emoji size) */
+.emoji-size--ultra_small {
+    height: calc(1.8em * 0.70) !important;
+    width: calc(1.8em * 0.70) !important;
+}
+
+/* Total Small (60% of base emoji size) */
+.emoji-size--total_small {
+    height: calc(1.8em * 0.60) !important;
+    width: calc(1.8em * 0.60) !important;
+}

@@ -1,0 +1,20 @@
+{% extends "base.html.twig" %}
+
+{% block page_content %}
+    <div class="content-block">
+        {{ content | safe }}
+    </div>
+
+    {% if sub_pages %}
+        <div class="sub-pages-list">
+            <h2>Témata v této sekci</h2>
+            <nav class="menu-nav">
+                <ol class="menu-list">
+                    {% for sub_page in sub_pages %}
+                        <li><a href="{{ sub_page.url }}">{{ sub_page.title }}</a></li>
+                    {% endfor %}
+                </ol>
+            </nav>
+        </div>
+    {% endif %}
+{% endblock %}

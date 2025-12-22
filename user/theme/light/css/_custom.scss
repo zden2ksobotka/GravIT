@@ -1,0 +1,950 @@
+/*
+=================================================================
+  Základní Reset, Typografie a Globální Styly
+=================================================================
+*/
+
+/* 
+ * 1. Moderní CSS Reset: Změna box-modelu pro intuitivnější práci s rozměry.
+ *    Zajišťuje, že padding a border jsou součástí celkové šířky/výšky elementu.
+ */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+/* 
+ * 2. Globální nastavení pro <html>.
+ *    - `font-size`: Nastavuje základní velikost písma (18px), od které se odvozují `rem` jednotky.
+ *    - `margin`, `padding`: Vynulování, aby se předešlo nechtěným mezerám od prohlížeče.
+ */
+html {
+  font-size: 18px;
+  margin: 0;
+  padding: 0;
+}
+
+/* 
+ * 3. Globální nastavení pro <body>.
+ *    - `line-height`: Základní výška řádku pro lepší čitelnost textu.
+ *    - `color`, `background-color`: Výchozí barva textu a pozadí.
+ *    - `font-smoothing`: Sjednocuje vyhlazování (anti-aliasing) písma v Chrome/Safari a Firefoxu.
+ */
+body {
+  margin: 0;
+  line-height: 1.6;
+  color: #000;
+  background-color: #fff;
+  -webkit-font-smoothing: antialiased; /* Pro Chrome, Safari */
+  -moz-osx-font-smoothing: grayscale;   /* Pro Firefox na macOS */
+}
+
+/* Opravuje výšku řádku u položek seznamu pro konzistentnější vzhled. */
+li {
+    line-height: normal;
+}
+
+/* Odstraňuje spodní margin u tlačítek, aby lépe seděly v layoutu. */
+button,.button {
+  margin-bottom: 0px !important;
+}
+
+
+/* 
+=================================================================
+  Styly pro Nadpisy (H1-H6)
+=================================================================
+*/
+
+/* Základní společné styly pro všechny úrovně nadpisů. */
+h1, h2, h3, h4, h5, h6 {
+  font-weight: 600;
+  line-height: 1.3;
+  margin: 1em 0 0.6em;
+  color: #000; 
+}
+
+/* Jednotlivé velikosti písma pro každou úroveň nadpisu. */
+h1 { font-size: 2.5rem; }  /* 45px */
+h2 { font-size: 2rem; }    /* 36px */
+h3 { font-size: 1.75rem; } /* 31.5px */
+h4 { font-size: 1.5rem; }   /* 27px */
+h5 { font-size: 1.25rem; } /* 22.5px */
+h6 { font-size: 1rem; }    /* 18px */
+
+
+/*
+=================================================================
+  Hlavní Layout a Kontejner
+=================================================================
+*/
+
+/* 
+ * Hlavní kontejner obsahu.
+ * - `max-width`: Omezuje maximální šířku obsahu na velkých obrazovkách.
+ * - `margin: 0 auto`: centruje kontejner na stránce.
+ */
+.container {
+    max-width: $py-desktop-page-size;
+    margin: 0 auto;
+    padding: 0 6px;
+}
+
+
+/*
+=================================================================
+  Styly pro Obrázky
+=================================================================
+*/
+
+/* Pomocná třída pro centrování obrázků. */
+img.center {
+  display: block;
+  margin-left: auto;
+  margin-right: auto; 
+}
+
+/* 
+ * Výchozí styl pro všechny obrázky v hlavním obsahu (`<main>`).
+ * - `max-width: 100%`: Zajišťuje, že obrázky jsou responzivní a nepřetečou z kontejneru.
+ * - `height: auto`: Zachovává poměr stran.
+ */
+main img {
+  max-width: 100%;
+  height: auto !important;
+  display: block !important;
+}
+
+/* Výjimka pro emoji (knihovna Twemoji), aby se zobrazovaly v řádku s textem. */
+main img.twemoji {
+  display: inline-block !important;
+  margin: 0 0.1em;
+  vertical-align: middle;
+}
+
+
+/*
+=================================================================
+  Hlavička Stránky (Header)
+=================================================================
+*/
+
+/* 
+ * Hlavní kontejner hlavičky.
+ * - `position: fixed`: Hlavička zůstává přilepená k hornímu okraji při scrollování.
+ * - `transition`: Plynulý přechod pro animaci změny výšky.
+ */
+.full-width-header {
+  background-color: #ffffff;
+  position: fixed;
+  width: 100%;
+  z-index: 1024;
+  height: 6.5rem; /* Výchozí výška */
+  transition: all 0.4s ease-in-out;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05); 
+  display: flex;
+  align-items: center;
+  top: 0;
+}
+
+/* Styl pro hlavičku poté, co uživatel posune stránku dolů. */
+.full-width-header.scrolled {
+  height: 2.8rem; /* Menší výška */
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1); 
+}
+
+/* Vnitřní kontejner hlavičky, který centruje obsah a má stejnou šířku jako `.container`. */
+.header-inner-container {
+  max-width: $py-desktop-page-size;
+  margin: 0 auto;
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  height: 100%;
+  padding: 0 6px;
+}
+
+/* Obecná sekce v hlavičce (např. pro logo nebo menu). */
+.header-section {
+  display: flex;
+  align-items: center;
+}
+
+/* Navigace na desktopu. */
+.main-nav {
+  display: flex;
+  flex-grow: 1;
+  justify-content: flex-end; /* Zarovnání položek doprava. */
+  align-items: center;
+}
+
+/* Pomocné třídy pro zarovnání sekcí v hlavičce. */
+.navbar-section.left {
+  margin-right: auto;
+}
+.navbar-section.right {
+  margin-left: auto;
+}
+
+
+/*
+=================================================================
+  Struktura obsahu a Sticky Footer
+=================================================================
+*/
+
+/* 
+ * Obal hlavního obsahu.
+ * - `padding-top`: Vytváří odsazení shora, aby obsah nezačínal pod pevnou hlavičkou.
+ * - `transition`: Zajišťuje plynulou animaci při změně výšky hlavičky.
+ */
+.main-content-wrapper {
+  padding-top: 6.5rem;
+  margin-bottom: 2rem;
+  transition: padding-top 0.4s ease-in-out; 
+}
+
+/* Menší odsazení, když je hlavička zmenšená. */
+.main-content-wrapper.scrolled {
+  padding-top: 3.25rem;
+}
+
+/* 
+ * Implementace "Sticky Footer" (Patička přilepená dole).
+ * 1. `body` se stane flex kontejnerem s minimální výškou celé obrazovky.
+ * 2. `.main-content-wrapper` se roztáhne (`flex-grow: 1`), aby vyplnil veškeré volné místo.
+ */
+body {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+.main-content-wrapper {
+  flex-grow: 1;
+}
+
+
+/*
+=================================================================
+  Mobilní Menu (Sidebar)
+=================================================================
+*/
+
+/* Tlačítko pro otevření mobilního menu ("hamburger"). Na desktopu je skryté. */
+.menu-toggle {
+    display: none; 
+    background: none;
+    border: none;
+    color: #333;
+    font-size: 1.5rem;
+    cursor: pointer;
+}
+
+/* 
+ * Samotný panel bočního menu.
+ * - `position: fixed`: Je fixní vůči oknu prohlížeče.
+ * - `left: -250px`: Standardně je skrytý mimo obrazovku.
+ * - `transition`: Plynulá animace vysunutí.
+ */
+.sidebar {
+    position: fixed;
+    top: 0;
+    left: -250px;
+    width: 250px;
+    height: 100%;
+    background-color: #222;
+    color: #fff;
+    transition: left 0.3s ease;
+    z-index: 1001;
+    box-shadow: 2px 0 5px rgba(0,0,0,0.3);
+}
+
+/* Třída přidaná JavaScriptem pro zobrazení menu. */
+.sidebar.is-active {
+    left: 0;
+}
+
+/* Překryvná vrstva, která ztmaví zbytek stránky, když je menu otevřené. */
+.sidebar-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0,0,0,0.5);
+    z-index: 1000;
+    display: none;
+}
+.sidebar-overlay.is-active {
+    display: block;
+}
+
+/* Hlavička uvnitř bočního menu (obsahuje např. logo a zavírací tlačítko). */
+.sidebar-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 6px;
+}
+.sidebar-header .site-brand {
+    color: #fff;
+    text-decoration: none;
+    font-size: 1.5rem;
+    font-weight: bold;
+}
+.sidebar-close {
+    background: none;
+    border: none;
+    color: #fff;
+    font-size: 1.5rem;
+    cursor: pointer;
+}
+
+/* Navigace uvnitř bočního menu. */
+.sidebar-nav {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+.sidebar-nav li a {
+    display: block;
+    padding: 1rem;
+    color: #fff;
+    text-decoration: none;
+    border-bottom: 1px solid #333;
+}
+.sidebar-nav li a:hover {
+    background-color: #444;
+}
+
+
+/*
+=================================================================
+  Layout se Sloupci a Panely
+=================================================================
+*/
+
+/* Kontejner pro dvousloupcový layout (hlavní obsah + boční panel). */
+.content-columns {
+    display: flex;
+    flex-wrap: wrap; /* Na malých obrazovkách se sloupce zlomí pod sebe. */
+    gap: 20px;
+}
+/* Hlavní, širší sloupec. */
+.main-column {
+    flex: 3;
+    min-width: 60%;
+}
+/* Boční, užší sloupec. */
+.sidebar-column {
+    flex: 1;
+    min-width: 300px;
+}
+
+/* Jednoduchý panel s bílým pozadím a zaoblenými rohy. */
+.content-panel {
+    background-color: #fff;
+    padding: 6px;
+    border-radius: 8px;
+}
+
+
+/*
+=================================================================
+  Specifické Komponenty
+=================================================================
+*/
+
+/* Drobečková navigace. */
+.breadcrumbs ol {
+    list-style: none;
+    padding: 8px;
+    margin: 0 0 1rem 0;
+    display: flex;
+    flex-wrap: wrap;
+}
+.breadcrumbs li {
+    margin-left: 0.5rem;
+}
+.breadcrumbs li a {
+    text-decoration: none;
+    color: #007bff;
+}
+.breadcrumbs li.active a {
+    color: #333;
+    font-weight: bold;
+    pointer-events: none; /* Neaktivní odkaz. */
+}
+/* Oddělovač mezi položkami. */
+.breadcrumbs li:not(:last-child)::after {
+    content: '/';
+    margin-left: 0.5rem;
+    color: #666;
+}
+
+/* Hlavní obsah stránky (text článku apod.). */
+.page-content {
+    margin-top: 1.5rem;
+}
+/* Zarovnání odstavců do bloku pro lepší vzhled. */
+main .page-content p {
+  text-align: justify !important;
+}
+
+/* Oprava: Odstraňuje spodní margin posledního odstavce uvnitř pluginů "notice" a "alert". */
+.notice p:last-child,
+.alert p:last-child {
+    margin-bottom: 0;
+}
+
+/* Styly pro komponentu vyhledávání. */
+.search-container {
+    border-radius: 8px;
+}
+.search-container h2 {
+    margin-top: 0;
+    color: #333;
+}
+.search-input {
+    width: 100%;
+    padding: 0.8rem;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    font-size: 1rem;
+    box-sizing: border-box;
+}
+.search-results {
+    margin-top: 1.5rem;
+    border-top: 1px solid #eee;
+}
+
+/* Seznam podstránek (používá se např. v mapě webu). */
+.sub-pages-list {
+    margin-top: 2rem;
+    padding: 1.5rem;
+    background-color: #f9f9f9;
+    border-radius: 8px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+}
+.sub-pages-list h2 {
+    margin-top: 0;
+    color: #333;
+}
+.menu-nav .menu-list {
+    list-style: decimal; /* Číslovaný seznam. */
+    padding-left: 20px;
+    margin: 0;
+}
+.menu-nav .menu-list li a {
+    display: block;
+    padding: 0.5rem 0;
+    color: #007bff;
+    text-decoration: none;
+}
+.menu-nav .menu-list li a:hover {
+    text-decoration: underline;
+}
+
+/* Patička stránky. */
+.site-footer {
+    background-color: #333;
+    color: #fff;
+    padding: 1.5rem 0;
+    text-align: center;
+    margin-top: 0px;
+}
+.footer-content p {
+    margin: 0;
+    font-size: 0.9rem;
+}
+
+/* "Hero" sekce - velký úvodní banner. */
+.hero-section {
+    background-color: #007bff;
+    color: #fff;
+    padding: 4rem 0;
+    text-align: center;
+    margin-bottom: 2rem;
+    border-radius: 8px;
+}
+.hero-title {
+    font-size: 3rem;
+    margin-bottom: 1rem;
+}
+.hero-subtitle {
+    font-size: 1.5rem;
+    margin-bottom: 2rem;
+}
+.hero-button {
+    background-color: #fff;
+    color: #007bff;
+    padding: 0.8rem 2rem;
+    text-decoration: none;
+    border-radius: 5px;
+    font-weight: bold;
+    transition: background-color 0.3s ease;
+}
+.hero-button:hover {
+    background-color: #e2e6ea;
+}
+
+/* Styly pro "Widgety" - kartičky typicky v bočním panelu. */
+.widget-card {
+    background-color: #fff;
+    border-radius: 8px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    margin-bottom: 1.5rem;
+}
+.widget-header {
+    padding: 1rem;
+    border-bottom: 1px solid #eee;
+}
+.widget-title {
+    margin: 0;
+    font-size: 1.2rem;
+    color: #333;
+}
+.widget-content {
+    padding: 1rem;
+}
+.widget-menu .widget-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+.widget-menu .widget-list li a {
+    display: block;
+    padding: 0.5rem 0;
+    color: #007bff;
+    text-decoration: none;
+}
+.widget-menu .widget-list li a:hover {
+    text-decoration: underline;
+}
+
+/* Tlačítko "Zpět nahoru". */
+#toTop {
+  display: none; /* Skryté, dokud se nezobrazí JS. */
+  position: fixed;
+  bottom: 20px;
+  right: 30px;
+  z-index: 99;
+  border: none;
+  background-color: rgba(240, 240, 240, 0.85);
+  color: #333;
+  cursor: pointer;
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+  transition: background-color 0.3s, transform 0.3s;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+#toTop:hover {
+  background-color: #f9f9f9;
+  transform: translateY(-3px);
+}
+/* Ikona šipky pomocí Font Awesome. */
+#toTop::before {
+    font-family: "Font Awesome 5 Free";
+    font-weight: 900;
+    content: "\f062"; /* fa-arrow-up */
+    font-size: 18px;
+}
+
+/* Neviditelná "kotva" pro plynulé skrolování na nadpisy. */
+.anchor{
+  display: block;
+  height: 50px;
+  margin-top: -50px;
+  visibility: hidden;
+}
+
+
+/*
+=================================================================
+  Styly pro Přihlašovací Stránku
+=================================================================
+*/
+
+/* Obal pro centrování přihlašovacího boxu. */
+.login-wrapper {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+  padding: 2rem 0;
+  box-sizing: border-box;
+}
+
+/* Samotný box s formulářem. */
+.login-box {
+  background-color: #ffffff;
+  padding: 2.5rem;
+  border-radius: 8px;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+  width: 100%;
+  max-width: 500px;
+  text-align: center;
+}
+
+.login-title {
+  margin-top: 0;
+  margin-bottom: 1.5rem;
+  font-size: 2rem;
+  color: #333;
+}
+
+/* Chybová hláška při špatném přihlášení. */
+.login-message {
+  background-color: #f8d7da;
+  color: #721c24;
+  border: 1px solid #f5c6cb;
+  padding: 0.75rem 1.25rem;
+  border-radius: 4px;
+  margin-bottom: 1.5rem;
+}
+
+/* Styly pro formulářové prvky. */
+form .input-group {
+  margin-bottom: 1.5rem;
+  text-align: left;
+}
+form .input-group label {
+  display: block;
+  margin-bottom: 0.5rem;
+  font-weight: 600;
+  color: #555;
+}
+form .input-group input {
+  width: 100%;
+  padding: 0.75rem;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  font-size: 1rem;
+  box-sizing: border-box;
+  transition: border-color 0.3s ease;
+}
+form .input-group input:focus {
+  outline: none;
+  border-color: #007bff;
+}
+
+/* Kontejner pro tlačítka (Login, Switch Account). */
+.button-group {
+  display: flex;
+  gap: 1rem;
+  margin-top: 2rem;
+}
+/* Společný styl pro obě tlačítka. */
+.button-login,
+.button-leave {
+  flex: 1; 
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 2.8rem;
+  padding: 0 1rem;
+  border-radius: 4px;
+  text-decoration: none;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.3s ease, color 0.3s ease;
+  box-sizing: border-box;
+  font-family: inherit;
+  -webkit-appearance: none;
+  appearance: none;
+}
+/* Specifický styl pro přihlašovací tlačítko. */
+.button-login {
+  background-color: #007bff;
+  color: #ffffff;
+  border: 1px solid #007bff;
+}
+.button-login:hover {
+  background-color: #0056b3;
+}
+/* Specifický styl pro druhé tlačítko (např. "Odejít"). */
+.button-leave {
+  background-color: #f8f9fa;
+  color: #333;
+  border: 1px solid #ccc;
+}
+.button-leave:hover {
+  background-color: #e2e6ea;
+}
+
+
+/*
+=================================================================
+  Specifické Typografické Styly
+=================================================================
+*/
+
+/* Vlastní font a styl pro položky v hlavní (desktopové) navigaci. */
+.main-nav .nav-item {
+  font-family: 'Lato', sans-serif;
+  font-weight: 700;
+  font-size: 0.9rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #333;
+  padding: 0 5px;
+  text-decoration: none;
+  transition: color 0.3s ease;
+}
+.main-nav .nav-item:hover {
+  color: #007bff;
+}
+.main-nav .nav-item a {
+    color: inherit;
+    text-decoration: none;
+}
+
+/* 
+ * Sjednocení stylu pro informace o uživateli (Logout, jméno) v mobilním menu,
+ * aby odpovídal ostatním položkám.
+ */
+.sidebar-nav .sidebar-user-info {
+    padding: 1rem;
+    border-bottom: 1px solid #eee;
+}
+.sidebar-nav .sidebar-user-info:hover {
+    background-color: #f0f0f0;
+}
+.sidebar-nav .sidebar-user-info a {
+    display: inline;
+    padding: 0;
+    border-bottom: none;
+    color: #333;
+    text-decoration: none;
+}
+.sidebar-nav .sidebar-user-info a:hover {
+    background-color: transparent;
+    text-decoration: underline;
+}
+.sidebar-nav .sidebar-user-info a:first-of-type {
+    margin-right: 0;
+}
+
+
+/*
+=================================================================
+  Responzivní Styly (pro mobilní zařízení)
+=================================================================
+*/
+
+/* Všechny styly uvnitř tohoto bloku se aplikují jen na obrazovkách užších než 1012px. */
+@media only screen and (max-width: 1012px) {
+    .container {
+      padding: 0px;
+    }
+    .content-panel {
+        box-shadow: none;
+    }
+    
+    /* Zmenšení a fixace výšky hlavičky na mobilu. */
+    .full-width-header,
+    .full-width-header.scrolled {
+        height: 3.25rem;
+    }
+    /* Úprava odsazení obsahu pod hlavičkou. */
+    .main-content-wrapper,
+    .main-content-wrapper.scrolled {
+        padding-top: 3.25rem;
+    }
+
+    /* Zobrazení "hamburger" tlačítka. */
+    .menu-toggle {
+        display: block;
+        padding: 0 1rem !important;
+        border-radius: 4px;
+        transition: background-color 0.3s ease;
+    }
+    .menu-toggle:hover {
+        background-color: #f0f0f0;
+    }
+    .menu-toggle.is-active {
+        background-color: #e0e0e0;
+    }
+
+    /* Skrytí desktopové navigace. */
+    .main-nav {
+        display: none;
+    }
+
+    /* Přizpůsobení bočního panelu, aby fungoval jako celoobrazovkové mobilní menu. */
+    .sidebar {
+        width: 100%;
+        left: -100%;
+        transition: left 0.3s ease;
+        background-color: #ffffff;
+        box-shadow: 2px 0 5px rgba(0,0,0,0.3);
+        height: 100vh;
+        overflow-y: auto;
+        color: #333; /* Oprava barvy textu pro mobilní menu */
+    }
+    .sidebar.is-active {
+        left: 0;
+    }
+
+    /* Styly pro položky v mobilní navigaci. */
+    .sidebar-nav {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+    }
+    .sidebar-nav li a {
+        display: block;
+        padding: 1rem;
+        color: #333;
+        text-decoration: none;
+        border-bottom: 1px solid #eee;
+    }
+    .sidebar-nav li a:hover {
+        background-color: #f0f0f0;
+    }
+}
+
+
+/*
+=================================================================
+  Ostatní a specifické opravy
+=================================================================
+*/
+
+/* Zvýraznění odkazu, který slouží jako "kontejner" (nemá vlastní stránku). */
+.page-content {
+    ol {
+        li.is-container > a {
+            color: #3658D6;
+
+            &:hover {
+                color: #5878E8;
+            }
+        }
+    }
+}
+
+/* Styly pro interaktivní checklist (plugin nebo vlastní Markdown). */
+.task-list { list-style: none; padding: 0; font-size: 1em; }
+.task-list-item { position: relative; margin-bottom: 0.8em; padding-left: 2em; cursor: pointer; user-select: none; }
+.task-list-control input[type="checkbox"] { position: absolute; opacity: 0; height: 0; width: 0; }
+.task-list-indicator { position: absolute; top: 0.15em; left: 0; width: 1.3em; height: 1.3em; background-color: #f8f9fa; border: 2px solid #6c757d; border-radius: 0.25em; transition: all 0.2s ease-in-out; }
+.task-list-item:hover .task-list-indicator { border-color: #495057; }
+.task-list-control input:focus ~ .task-list-indicator { box-shadow: 0 0 0 0.2em rgba(40, 167, 69, 0.5); border-color: #28a745; }
+.task-list-control input:checked ~ .task-list-indicator { background-color: #28a745; border-color: #28a745; }
+.task-list-indicator:after { content: ''; position: absolute; display: none; left: 0.4em; top: 0.15em; width: 0.3em; height: 0.7em; border: solid white; border-width: 0 3px 3px 0; transform: rotate(45deg); }
+.task-list-control input:checked ~ .task-list-indicator:after { display: block; }
+.task-list-item > .task-list-label { transition: color 0.2s; }
+.task-list-control input:checked ~ .task-list-label { text-decoration: line-through; color: #6c757d; }
+
+/* Oprava: Povoluje zalamování řádků v blocích kódu na malých obrazovkách. */
+pre > code {
+  white-space: pre !important;
+}
+
+#container-content {
+    li {
+        margin-bottom: 0.5rem;
+    }
+    td {
+        padding: 0.2rem 0.2rem;
+    }
+
+    &.one-column {
+        ul, ol {
+            list-style: none;
+        }
+        
+        td {
+            padding: 0;
+            border: none;
+        }
+    }
+
+    &.multi-column td {
+        border-bottom: 1px solid #E1E1E1;
+    }
+}
+
+.index-list-default {
+    list-style: none;
+}
+
+.sidebar-nav li {
+    margin-bottom: 0;
+} 
+.sidebar-nav li a {
+    //padding: 0;
+    padding: 1rem;
+}
+.sidebar-nav ul {
+    list-style: auto;
+}
+
+
+/*
+ * Oprava pro položky menu (Login, Search), které nejsou v <li>.
+ * Zajistí, že se každý odkaz zobrazí na samostatném řádku (display: block)
+ * a bude mít stejný styl jako ostatní položky.
+*/
+.sidebar-nav > .nav-item {
+    display: block;
+    padding: 1rem;
+    color: #333;
+    text-decoration: none;
+    border-bottom: 1px solid #eee;
+}
+.sidebar-nav > .nav-item:hover {
+    background-color: #f0f0f0;
+}
+
+
+    /*
+ * ===============================================================
+ *   Cílená oprava výšky položek v mobilním menu (line-height)
+ * ===============================================================
+ * Problém: Položky, které jsou přímé odkazy <a> (např. "Search"),
+ * dědí jinou `line-height` než položky, které jsou v seznamu <li>
+ * (např. "Install"). To způsobuje jejich rozdílnou vizuální výšku.
+ *
+ * Řešení: Explicitně nastavíme stejnou `line-height` pro všechny
+ * typy položek v .sidebar-nav, aby byly vizuálně zarovnané.
+*/
+.sidebar-nav .nav-item, .sidebar-nav li > a, .sidebar-nav li > span {
+    line-height: 1.4;
+}
+
+/* --- Image Alignment Helpers (align=...) --- */
+.align-left {
+    display: block;
+    margin-left: 0;
+    margin-right: auto;
+}
+
+.align-right {
+    display: block;
+    margin-left: auto;
+    margin-right: 0;
+}
+    
+.align-center {
+    display: block;
+    margin: 0 auto;
+}
+
+/* --- Override for HR element (to match skeleton styles) --- */
+hr {
+    margin-top: 2rem;
+    margin-bottom: 2rem;
+}
+
+
+

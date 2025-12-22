@@ -1,0 +1,18 @@
+/*
+ * SCSS template for the Font Size plugin.
+ * Variables will be injected by the Python script.
+ */
+
+@if $enable-desktop {
+    html {
+        font-size: $desktop-font-size !important;
+    }
+}
+
+@if $enable-mobile {
+    @media (max-width: $mobile-breakpoint) {
+        html {
+            font-size: $mobile-font-size !important;
+        }
+    }
+}

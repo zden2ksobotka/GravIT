@@ -1,0 +1,29 @@
+# Python generated files
+__pycache__/
+*.py[co]
+*.pyc
+
+# Virtual Environment
+venv/
+.venv/
+env/
+
+# Project-specific artifacts (FastAPI CMS)
+log/
+run/
+
+# Test output files
+test/*.txt
+.pytest_cache/
+htmlcov/
+.coverage*
+
+# Generated artifacts (e.g. plugin statistics)
+user/plugin/page_statistics/stats_*.txt
+
+
+# Editor artifacts and temporary files
+*.swp
+*~
+*.orig
+.DS_Store

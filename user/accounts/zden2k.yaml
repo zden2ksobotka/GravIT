@@ -1,0 +1,10 @@
+state: enabled
+email: jmeno.prijmeni@gmail.com
+fullname: zden2k
+title: Site Administrator
+access:
+  admin:
+    login: true
+  zden2k:
+    login: true
+hashed_password: $2y$10$DG6XU82ftevKR8OrfpC/gOwyB.vyQicEAnPSSgn40v5zRm14kaNl2

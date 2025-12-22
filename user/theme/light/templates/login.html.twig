@@ -1,0 +1,70 @@
+{% extends "base.html.twig" %}
+
+{% block page_content %}
+    <div id="page-content" class="page-content">
+        <div class="login-wrapper">
+            <div class="login-box">
+                <h2 class="login-title">Login Required</h2>
+
+                {% if message %}
+                    {# This uses the classes from the "notices" plugin to display a dismissible alert #}
+                    {# The notice.js file will automatically add a close button #}
+                    <div class="notice danger closable">
+                        <p>{{ message }}</p>
+                    </div>
+                {% endif %}
+
+                {# If user is logged in (which happens in the access_denied case), show info and different buttons #}
+                {% if current_user %}
+                    <div class="input-group" style="text-align: center; padding-bottom: 20px;">
+                        <p>You are currently logged in as <strong>{{ current_user.fullname }}</strong>.</p>
+                        <p>To proceed, you must log out and sign in with an account that has the required permissions.</p>
+                    </div>
+                    <div class="button-group">
+                        {# Preserve the 'next' parameter during logout to redirect correctly after the next login #}
+                        <a href="/logout?next={{ next_url | url_encode }}" class="button-login">Switch Account</a>
+                        {# Use a more robust if/else for the href attribute #}
+                        <a href="{% if from_page %}{{ from_page }}{% else %}{{ site_url | default('/') }}{% endif %}" class="button-leave">
+                            {% if from_page %}BACK{% else %}Back to Home{% endif %}
+                        </a>
+                    </div>
+
+                {# Otherwise, show the full login form for anonymous users #}
+                {% else %}
+                    <form action="/login" method="post">
+                        {% if next_url %}
+                            <input type="hidden" name="next_url" value="{{ next_url }}">
+                        {% endif %}
+                        
+                        <div class="input-group">
+                            <label for="username">Username:</label>
+                            <input type="text" id="username" name="username" required>
+                        </div>
+                        
+                        <div class="input-group">
+                            <label for="password">Password:</label>
+                            <input type="password" id="password" name="password" required>
+                        </div>
+                        
+                        <div class="button-group">
+                            <button type="submit" class="button-login">LOGIN</button>
+                            <a href="{% if from_page %}{{ from_page }}{% else %}{{ site_url | default('/') }}{% endif %}" class="button-leave">
+                                {% if from_page %}BACK{% else %}Back to Home{% endif %}
+                            </a>
+                        </div>
+                    </form>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    <div id="search-container" class="search-container" style="display: none;">
+        <h2>Search</h2>
+        <div class="form-group">
+            <div>
+                <input type="text" id="search-input" class="search-input" placeholder="Enter search query (supports Regex)">
+            </div>
+        </div>
+        <div id="search-results" class="search-results">
+        </div>
+    </div>
+{% endblock %}

@@ -1,0 +1,7 @@
+/*
+ * SCSS template for the Font Size plugin.
+ * Variables will be injected by the Python script.
+ */
+@media (max-width: 1012px) {
+  html {
+    font-size: 80% !important; } }

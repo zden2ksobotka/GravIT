@@ -1,0 +1,20 @@
+                <!--- START HEADER DESKTOP --->
+                <nav class="main-nav" id="main-nav">
+                    <section class="navbar-section left">
+                        {%- if 'search' in active_plugin_names %}
+                            <a id="search-toggle" class="nav-item" href="#">Search</a>
+                        {%- endif -%}
+                        {% if current_user %}
+                            <a href="/logout" class="nav-item">Logout</a>
+                            <span class="nav-item">(<a href="/profile">{{ current_user.fullname }}</a>)</span>
+                        {% else %}
+                            <a href="/login" class="nav-item">Login</a>
+                        {%- endif %}
+                    </section>
+                    <section class="navbar-section right">
+                        {%- for item in main_navigation %}
+                            <a href="{{ item.url }}" class="nav-item">{{ item.title }}</a>
+                        {%- endfor %}
+                    </section>
+                </nav>
+                <!--- START HEADER DESKTOP --->

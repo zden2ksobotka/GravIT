@@ -1,0 +1,22 @@
+{% if page.sidebar is defined and page.sidebar.enabled and page.sidebar.widgets %}
+    {% for widget in page.sidebar.widgets %}
+        <div class="widget-card">
+            <header class="widget-header">
+                <p class="widget-title">
+                    {{ widget.title }}
+                </p>
+            </header>
+            <div class="widget-content">
+                <nav class="widget-menu">
+                    {% if widget.links %}
+                        <ul class="widget-list">
+                            {% for link in widget.links %}
+                                <li><a href="{{ link.url }}">{{ link.text }}</a></li>
+                            {% endfor %}
+                        </ul>
+                    {% endif %}
+                </nav>
+            </div>
+        </div>
+    {% endfor %}
+{% endif %}

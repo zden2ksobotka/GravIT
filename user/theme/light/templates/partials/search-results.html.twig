@@ -1,0 +1,27 @@
+{% if is_tree_view %}
+    <h3 class="title is-4">{{ tree_title }}</h3>
+    {{ page_tree_html }}
+
+    {% if query_message %}
+        <p class="notification is-info" style="margin-top: 1em;">{{ query_message }}</p>
+    {% endif %}
+{% else %}
+    {% if query_message %}
+        <p class="notification is-info">{{ query_message }}</p>
+    {% endif %}
+
+    {% if search_results %}
+        {% for result in search_results %}
+            <div class="box">
+                <h3 class="title is-4"><a href="/{{ result.slug }}">{{ result.title }}</a></h3>
+                {% for snippet in result.snippets %}
+                    <p>{{ snippet }}</p>
+                {% endfor %}
+            </div>
+        {% endfor %}
+    {% else %}
+        {% if not query_message %}
+            <p>Please enter a search query.</p>
+        {% endif %}
+    {% endif %}
+{% endif %}

@@ -1,0 +1,26 @@
+.codeblock {
+  overflow: hidden;
+  font-family: monospace;
+  border-radius: 4px;
+  margin-bottom: 1em; 
+}
+
+.codehead {
+  color: #ddd;
+  background-color: #000;
+  font-size: 0.9em;
+  font-family: monospace;
+  padding: 2px 7px;
+}
+
+.codeblock pre {
+  margin: 0;
+  overflow-x: auto;
+}
+
+.codeblock code {
+  border: none !important;
+  border-radius: 0 !important;
+  padding: 8px 12px !important;
+  margin: 0px !important;
+}

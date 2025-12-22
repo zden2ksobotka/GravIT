@@ -1,0 +1,476 @@
+{
+  "install": {
+    "page": {
+      "title": "Install",
+      "slug": "install",
+      "toc": {
+        "enabled": true,
+        "floating": true
+      },
+      "visible": true
+    },
+    "markdown_content": "![Gravity](gravit.jpg?width=550)\n\n! This document will guide you through the complete process of deploying the CMS on a Linux server (e.g., Debian/Ubuntu) from scratch to a functional website running under your own domain.\n\n## 1. Prerequisites\n\nBefore you begin, ensure that you have the following tools installed on your server:\n- `git`\n- `python3` and `python3-venv`\n- `nginx`\n- `certbot` (recommended for SSL)\n\nYou can install them easily using the package manager:\n```bash\napt update\napt install git python3 python3-venv nginx\n```\n\n## 2. Environment Preparation\n\nIt is recommended to run the application under an unprivileged user, such as `www-data`.\n\n#### Step 1: Clone the Repository\nClone or copy the project into the target directory. We will use `/var/www/DOMAIN` as an example.\n\n```bash\n# Create the directory for the project:\nmkdir -p /var/www/DOMAIN\nmkdir -p /var/www/DOMAIN/run\n\n# Clone the project:\ngit clone <REPOZITORY> /var/www/DOMAIN\n\n# Set the correct permissions:\nchown www-data:www-data -R /var/www/DOMAIN\n```\n\n#### Step 2: Create a Virtual Environment\nThe application will run in an isolated Python environment.\n\n```bash\n# Switch to the project directory\ncd /var/www/DOMAIN\n\n# Create the venv (as the www-data user)\nsudo -u www-data python3 -m venv venv\n```\n\n#### Step 3: Install Dependencies\nInstall all necessary Python libraries.\n\n```bash\n# Run pip from our venv\nsudo -u www-data ./venv/bin/pip install -r requirements.txt\n```\n\n## 3. Systemd Configuration\n\nFor reliable background operation, we will use `systemd` with socket-based activation. `systemd` will listen on a socket and start the application only upon the first incoming request. We will use Uvicorn as the Python wrapper.\n\n#### Step 1: Create the Socket File\nCreate the file `/etc/systemd/system/uvicorn-DOMAIN.socket`:\n```\n# /etc/systemd/system/uvicorn-DOMAIN.socket\n[Unit]\nDescription=Uvicorn socket for CMS\n\n[Socket]\nListenStream=/var/www/DOMAIN/run/uvicorn-DOMAIN.sock\nSocketUser=www-data\nSocketGroup=www-data\nSocketMode=0660\n\n[Install]\nWantedBy=sockets.target\n```\n\n!!! Ensure that the directory `/var/www/DOMAIN/run/` exists and has the correct permissions so that the `www-data` user can write to it.\n\n#### Step 2: Create the Service File\nCreate the file `/etc/systemd/system/uvicorn-DOMAIN.service`:\n```\n# /etc/systemd/system/uvicorn-DOMAIN.service\n[Unit]\nDescription=Uvicorn service for CMS\nRequires=uvicorn-DOMAIN.socket\nAfter=network.target\n\n[Service]\nUser=www-data\nGroup=www-data\nWorkingDirectory=/var/www/DOMAIN\nEnvironment=\"PYTHONPATH=/var/www/DOMAIN/venv/lib/python3.11/site-packages\"\nExecStart=/var/www/DOMAIN/venv/bin/uvicorn main:app --workers 3 --uds /var/www/DOMAIN/run/uvicorn-DOMAIN.sock --proxy-headers\nRestart=on-failure\n\n[Install]\nWantedBy=multi-user.target\n```\n\n!! Do not forget to adjust the path in `PYTHONPATH` according to your Python version (e.g., `python3.11`, `python3.13`, etc.).\n\n#### Step 3: Start and Enable Services\n```bash\n# Reload the systemd configuration\nsystemctl daemon-reload\n\n# Enable and immediately start the socket\nsystemctl enable --now uvicorn-DOMAIN.socket\n\n# Verify that the socket is listening\nsystemctl status uvicorn-DOMAIN.socket\n```\n\n## 4. Nginx Configuration\n\nNginx will serve as a reverse proxy—it will accept requests from the internet and forward them to our application running on the socket. It will also handle the efficient serving of static files (CSS, JS, images).\n\nCreate the file `/etc/nginx/sites-available/DOMAIN.conf` (replace DOMAIN with your domain):\n\n```nginx\nserver {\n    listen 80;\n    listen [::]:80;\n\n    server_name DOMAIN;\n    root /var/www/DOMAIN;\n\n    location ^~ /.well-known/acme-challenge/ {\n       alias /var/www/DOMAIN/.well-known/acme-challenge/;\n    }\n\n    # Redirect to HTTPS and handler for Certbot\n    location / {\n        return 302 https://$host$request_uri;\n    }\n}\n\nserver {\n    listen 443 ssl;\n    listen [::]:443 ssl;\n\n    http2 on; \n\n    access_log      /var/log/nginx/DOMAIN-access.log;\n    error_log       /var/log/nginx/DOMAIN-error.log;\n\n    server_name DOMAIN;\n    root /var/www/DOMAIN/;\n\n    # Paths to SSL certificates (obtained via Certbot)\n    ssl_certificate /etc/letsencrypt/live/DOMAIN/fullchain.pem;\t\t# Certificates must be created beforehand using Certbot or another Acme client\n    ssl_certificate_key /etc/letsencrypt/live/DOMAIN/privkey.pem;\n\n    # Security: Deny direct access to content and accounts\n    location ~* ^/(user)/pages/.*\\.(jpg|jpeg|gif|png|webp|bmp)$ {\n        expires 7d;\n        access_log off;\n    }\n\n    location ~* ^/user/(pages|accounts)/.*\\.(md|yaml)$ {\n        deny all;\n    }\n\n    location = /favicon.svg {\n        access_log off;\n        log_not_found off;\n        expires 7d;\n    }\n\n    location = /user/plugin/optimizer/service-worker.js {\n        add_header 'Service-Worker-Allowed' '/';\n        add_header 'Cache-Control' 'no-cache, no-store, must-revalidate';\n    }\n\n    # Forward all other requests to our application\n    location / {\n        proxy_pass http://unix:/var/www/DOMAIN/run/uvicorn-DOMAIN.sock;\n        proxy_set_header Host $host;\n        proxy_set_header X-Real-IP $remote_addr;\n        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;\n        proxy_set_header X-Forwarded-Proto $scheme;\n    }\n}\n```\n\n#### Finalize Nginx Setup\n```bash\n# Activate the new configuration\nln -s /etc/nginx/sites-available/DOMAIN.conf /etc/nginx/sites-enabled/\n\n# Test the syntax\nnginx -t\n\n# If all is well, restart Nginx\nsystemctl restart nginx\n```\n\n!! We recommend running `certbot --nginx` for the first time to automatically obtain and set up SSL certificates.\n\n## 5. Final Check\n\nIf you have followed the steps correctly, your CMS should now be accessible on your domain.\n\nYou can monitor any application errors using:\n```bash\njournalctl -u uvicorn-DOMAIN.service -f\n```",
+    "sort_key": "004.Install",
+    "file_path": "/var/www/cms.n0ip.eu/user/pages/004.Install/default.md",
+    "slug": "install",
+    "slug_path": "cms.n0ip.eu/install",
+    "title": "Install",
+    "path_parts": [
+      "004.Install"
+    ],
+    "_page.title": "Install",
+    "_page.slug": "install",
+    "_page.toc.enabled": true,
+    "_page.toc.floating": true,
+    "_page.visible": true
+  },
+  "support": {
+    "page": {
+      "title": "Support Hidden",
+      "slug": "support",
+      "visible": false
+    },
+    "markdown_content": "# Support\n\n!!!= :dollar: If you would like to support my work, donations are welcome. You can do this most easily in the form of cryptocurrencies like: Monero, LTC, or Eth.\n\n\n* blog\n    * jako plugin\n    * blog: true\n    * blog.date: true\n    * blog.max_wrap_lines: 20 - a nebo ne tohle se nastavi uvnitr, ze bude kontejner blog <!-----[WRAP]----->\n    * blog.articles_page: 20\n    * blog enebled config, aby neplytval resource\n* schovavat search, login, nejaka promenna na to?\n\n* slug musi byt jedninecny, zaridit, aby pri nacitani do pagecache byl, v pripade ze neni unikatni pridat mu 01,02,03",
+    "sort_key": "020.Support",
+    "file_path": "/var/www/cms.n0ip.eu/user/pages/020.Support/default.md",
+    "slug": "support",
+    "slug_path": "cms.n0ip.eu/support",
+    "title": "Support Hidden",
+    "path_parts": [
+      "020.Support"
+    ],
+    "_page.title": "Support Hidden",
+    "_page.slug": "support",
+    "_page.visible": false
+  },
+  "home": {
+    "page": {
+      "title": "Home",
+      "slug": "home",
+      "visible": false
+    },
+    "markdown_content": "# GravIT!:rainbow:\n\n! <p>GravIT! This **Simple CMS** is built on the philosophy of **\"simplicity\"**. Unlike heavy content management systems, almost everything that would reduce speed or add unnecessary complexity has been omitted.\n**Content, configuration, and users** are all defined in a simple schema of text files using Markdown and YAML **flat-file** principle. This guarantees lightning-fast response and maximum transparency.</p>\n\n## In-Memory Power: Speed Above Gold :rocket:\nThe CMS utilizes modern **Python and FastAPI**, one of the fastest asynchronous frameworks available today. Upon startup, the complete content is loaded into **memory (RAM)**. The CMS's programming languages are **Python**, **Twig** and **SCSS**, with only the necessary amount of **JavaScript**: \n\n![Gravit](gravit_code_light.png?width=300&align=center)\n\n<br>\nPages are then served from the **in-memory cache** with a response time that is many times faster than database queries. Thanks to **multi-threading** support, the application can effectively utilize multiple CPU cores.\n\n## Modular Approach: Write What You Need\nGravIT! is not for everyone. It is designed for those who appreciate **freedom and simplicity**. If you find a specific feature missing, it is by design-the CMS is intended as a minimalist core that you can easily extend yourself using **purposeful plugins or your own code**.\n\n🔸   **Versioning and Backup:** Content management is as simple as a `git commit`. The entire website is just one directory that can be easily versioned and backed up.<br>\n🔸   **No Admin Panel:** The system avoids a complex GUI, thereby reducing maintenance, security risks, and dependency on outdated libraries.<br>\n\n\n### Key Features\n🔸   **Architecture:** Python 3 and FastAPI for lightning-fast asynchronous operation.<br>\n🔸   **Content:** Integrated Markdown with YAML for metadata and configuration.<br>\n🔸   **Navigation:** Automatic, multi-level structure of bookmarks.<br>\n🔸   **Search:** Fast search with regular expression support.<br>\n🔸   **Security:** Support for multiple users and granular access control to content.<br>\n🔸   **Aesthetics:** Responsive design and support for modern styles (SCSS, Emojis :100:{.emoji-size--ultra_small}).<br>\n🔸   **Code:** Syntax highlighting with modern themes.<br>\n🔸   **Extensions:** A rich library of purposeful plugins that do not modify the core application.<br>",
+    "sort_key": "001.Home",
+    "file_path": "/var/www/cms.n0ip.eu/user/pages/001.Home/default.md",
+    "slug": "home",
+    "slug_path": "cms.n0ip.eu/home",
+    "title": "Home",
+    "path_parts": [
+      "001.Home"
+    ],
+    "_page.title": "Home",
+    "_page.slug": "home",
+    "_page.visible": false
+  },
+  "doku": {
+    "page": {
+      "title": "Documentation",
+      "slug": "doku",
+      "visible": true
+    },
+    "markdown_content": "!= Welcome to the interactive demonstration! Below you will find the complete map of this section. It serves as a guide to show you everything you can find here and how the content is structured.\n\n!! Navigate through the structure and explore individual pages. Each one explains a key principle for creating content in this CMS.\n\n<br>\n<ul class=\"list\">\n    <li><a href=\"/doku\"><strong>Documentation</strong></a>\n        <ul>\n            <li><a href=\"/doku/first-level\"><strong>First Level</strong></a>\n                <ul>\n                    <li><a href=\"/doku/first-level/second-level-a\"><strong>Second Level - Branch A</strong></a>\n                        <ul>\n                            <li><a href=\"/doku/first-level/second-level-a/third-level\">Third Level - End</a></li>\n                        </ul>\n                    </li>\n                    <li><a href=\"/doku/first-level/second-level-b\"><strong>Second Level - Branch B</strong></a>\n                        <ul>\n                            <li><a href=\"/doku/first-level/second-level-b/container-test\"><strong>Container Tab Test</strong></a>\n                                <ul>\n                                    <li><a href=\"/doku/first-level/second-level-b/container-test/text-formatting\">Text Formatting</a></li>\n                                    <li><a href=\"/doku/first-level/second-level-b/container-test/plugin-samples\">Plugin Samples</a></li>\n                                    <li><a href=\"/doku/first-level/second-level-b/container-test/code-blocks\">Code Blocks</a></li>\n                                    <li><a href=\"/doku/first-level/second-level-b/container-test/image-embedding\">Image Embedding</a></li>\n                                    <li><a href=\"/doku/first-level/second-level-b/container-test/emoji\">Emoji Embedding</a></li>\n                                </ul>\n                            </li>\n                        </ul>\n                    </li>\n                </ul>\n            </li>\n            <li><a href=\"/doku/how-it-works\"><strong>How It Works?</strong></a>\n                <ul>\n                    <li><a href=\"/doku/how-it-works/page-anatomy\">Page Anatomy (Title vs. Slug)</a></li>\n                    <li><a href=\"/doku/how-it-works/structure-and-menu\">Structure and Menu Item Types</a></li>\n                    <li><a href=\"/doku/how-it-works/special-routes\">Special Routes (not just pages)</a></li>\n                    <li><a href=\"/doku/how-it-works/plugins-overview\">Overview of Key Plugins</a></li>\n                    <li><a href=\"/doku/how-it-works/user-management\">User and Access Management</a></li>\n                    <li><a href=\"/doku/how-it-works/container-logic\">Container Logic and Multicolumn Index</a></li>\n                    <li><a href=\"/doku/how-it-works/toc-plugin\">TOC Plugin (Table of Contents)</a></li>\n                </ul>\n            </li>\n        </ul>\n    </li>\n</ul>\n\n<br>\n\n!!!+= :pencil2: If you have gone through all the interactive items in these How-To, you should have no problem figuring out how to create content in the CMS correctly!",
+    "sort_key": "010.Documentation",
+    "file_path": "/var/www/cms.n0ip.eu/user/pages/010.Documentation/default.md",
+    "slug": "doku",
+    "slug_path": "cms.n0ip.eu/doku",
+    "title": "Documentation",
+    "path_parts": [
+      "010.Documentation"
+    ],
+    "_page.title": "Documentation",
+    "_page.slug": "doku",
+    "_page.visible": true
+  },
+  "doku/how-it-works": {
+    "page": {
+      "title": "How It Works?",
+      "slug": "how-it-works",
+      "container": {
+        "enabled": true,
+        "columns": 1,
+        "format": "list3",
+        "show_all": {
+          "when_logout": true,
+          "when_login": true
+        }
+      }
+    },
+    "markdown_content": "# Container\n!!!! Because this page is a container tab with `container.enabled: True`, this text will not be displayed.\n\n## Welcome to the help section!\n\nThis part explains in detail the key principles on which this CMS operates. Explore the individual subsections and understand how easy it is to manage content.\n\n### What you will learn here:\n\n**[Page Anatomy](/doku/how-it-works/page-anatomy):** What `title` and `slug` mean in the header of every page.\n\n**[Structure and Menu](/doku/how-it-works/structure-and-menu):** How directories become menu items and the difference between a page and a container.\n\n**[Container Logic](/doku/how-it-works/container-logic):** How to create a container tab with a multicolumn index and control the visibility of subpages (`show_all`).\n\n**[Special Routes](/doku/how-it-works/special-routes):** Links that do not originate from pages but from the application core (e.g., `/login`).\n\n**[Overview of Key Plugins](/doku/how-it-works/plugins-overview):** A list and description of the most important extensions for content creation.\n\n**[User and Access Management](/doku/how-it-works/user-management):** How authentication and access control to pages work.\n\n**[TOC Plugin (Table of Contents)](/doku/how-it-works/toc-plugin):** Creating dynamic content (Table of Contents) from page headings.\n\n---\n**[Back to the absolute start of the demo](/doku)**",
+    "sort_key": "010.Documentation",
+    "file_path": "/var/www/cms.n0ip.eu/user/pages/010.Documentation/02.How-it-works/default.md",
+    "slug": "doku/how-it-works",
+    "slug_path": "cms.n0ip.eu/doku/how-it-works",
+    "title": "How It Works?",
+    "path_parts": [
+      "010.Documentation",
+      "02.How-it-works"
+    ],
+    "_page.title": "How It Works?",
+    "_page.slug": "how-it-works",
+    "_page.container.enabled": true,
+    "_page.container.columns": 1,
+    "_page.container.format": "list3",
+    "_page.container.show_all.when_logout": true,
+    "_page.container.show_all.when_login": true
+  },
+  "doku/first-level": {
+    "page": {
+      "title": "First Level",
+      "slug": "first-level"
+    },
+    "markdown_content": "## You are on the first level.\n\n! This page serves as a hub. In the menu (and in the links below), you can see that the content is divided into two main branches: **A** and **B**.\n\n!! This demonstrates how you can have an \"introductory\" text (this one) on one level while simultaneously linking to several sub-categories.\n\n### Where to go next?\n\nExplore both branches to see different structuring methods:\n\n1.  **[Go to Branch A](/doku/first-level/second-level-a)** - Standard continuation to the next level.\n2.  **[Go to Branch B](/doku/first-level/second-level-b)** - A demonstration using a \"container\" without an index.",
+    "sort_key": "010.Documentation",
+    "file_path": "/var/www/cms.n0ip.eu/user/pages/010.Documentation/01.First-level/default.md",
+    "slug": "doku/first-level",
+    "slug_path": "cms.n0ip.eu/doku/first-level",
+    "title": "First Level",
+    "path_parts": [
+      "010.Documentation",
+      "01.First-level"
+    ],
+    "_page.title": "First Level",
+    "_page.slug": "first-level"
+  },
+  "doku/first-level/second-level-b": {
+    "page": {
+      "title": "Second Level - Branch B",
+      "slug": "second-level-b"
+    },
+    "markdown_content": "## You are in Branch B: Container Demonstration\n\n! This branch demonstrates how to create a menu for grouping several pages.\n\n!! We previously showed the possibilities of navigating to other items `using direct links`. Another option is navigation using automatically generated items by the CMS. These are represented by a directory that does not contain a `default.md` file. Its hyperlink will render the folders that are one level below this folder.\n\n### Explore the content of the container tab\n\nInside this \"container\" tab are several pages that demonstrate specific CMS features. Here are direct links to explore them:\n\n**[Text Formatting](/doku/first-level/second-level-b/container-test/text-formatting)**\nShows how to use headings, bold text, lists, and other basic Markdown elements.\n\n**[Plugin Samples](/doku/first-level/second-level-b/container-test/plugin-samples)**\nDemonstrates how to insert special colored notifications and alerts.\n\n**[Code Blocks](/doku/first-level/second-level-b/container-test/code-blocks)**\nShows how to correctly display code samples from various programming languages.\n\n**[Image Embedding](/doku/first-level/second-level-b/container-test/image-embedding)**\nShows how to embed an image on a page and how to change its size.\n\n**[Emoji Embedding](/doku/first-level/second-level-b/container-test/emoji)**\nShows how to use emojis with dynamic resizing using CSS classes.\n\n### Direct link to the container tab\n\n!!!!+= An automatically generated container tab is created by not using a `default.md` file inside the folder. An example can be this **[item](/doku/first-level/second-level-b/container-test)**.\n\n---\n**[Back to the absolute start of the demo](/doku)**",
+    "sort_key": "010.Documentation",
+    "file_path": "/var/www/cms.n0ip.eu/user/pages/010.Documentation/01.First-level/02.Second-level-B/default.md",
+    "slug": "doku/first-level/second-level-b",
+    "slug_path": "cms.n0ip.eu/doku/first-level/second-level-b",
+    "title": "Second Level - Branch B",
+    "path_parts": [
+      "010.Documentation",
+      "01.First-level",
+      "02.Second-level-B"
+    ],
+    "_page.title": "Second Level - Branch B",
+    "_page.slug": "second-level-b"
+  },
+  "doku/first-level/second-level-a": {
+    "page": {
+      "title": "Second Level - Branch A",
+      "slug": "second-level-a"
+    },
+    "markdown_content": "## You are in Branch A on the second level.\n\n! This is an example of a simple, linear nesting. This page has only one more sub-level.\n\n!! Notice how the browser address (`/doku/first-level/second-level-a`) exactly mirrors the structure.\n\n**[Continue to the third level](/doku/first-level/second-level-a/third-level)**",
+    "sort_key": "010.Documentation",
+    "file_path": "/var/www/cms.n0ip.eu/user/pages/010.Documentation/01.First-level/01.Second-level-A/default.md",
+    "slug": "doku/first-level/second-level-a",
+    "slug_path": "cms.n0ip.eu/doku/first-level/second-level-a",
+    "title": "Second Level - Branch A",
+    "path_parts": [
+      "010.Documentation",
+      "01.First-level",
+      "01.Second-level-A"
+    ],
+    "_page.title": "Second Level - Branch A",
+    "_page.slug": "second-level-a"
+  },
+  "doku/how-it-works/plugins-overview": {
+    "page": {
+      "title": "Overview of Key Plugins",
+      "slug": "plugins-overview"
+    },
+    "markdown_content": "! This CMS utilizes a modular plugin system to extend its core functionality. Here is an overview of the most important ones you might encounter.\n\n### Plugins for Content and Appearance\n\n*   **Alerts & Notices:** Allow inserting colored informational boxes using syntax like `!` or `|`.\n*   **Emoji:** Converts shortcodes (e.g., `:smile:`) into graphical emojis.\n*   **TOC (Table of Contents):** Automatically generates the table of contents from page headings.\n*   **Author:** Displays the author's name and publication date below the article (if defined in YAML).\n\n### Functional and Diagnostic Plugins\n\nSome plugins add special pages (routes) to the system, which are usually intended for diagnostics or specific functions.\n\n*   **Search:** Handles all the logic for site-wide searching.\n*   **Page Tree:** Generates a complete sitemap (tree structure).\n    *   **URL:** [`/tree`](/tree)\n*   **Memory Stats:** Displays statistics on memory usage by individual application processes. Useful for performance debugging.\n    *   **URL:** [`/memory_stats`](/memory_stats)\n*   **Test Dump Page Cache:** Outputs the complete content of the `PAGE_CACHE` to a text file. Intended exclusively for developers and debugging.\n    *   **URL:** [`/dumpcache`](/dumpcache)\n*   **Optimizer:** Generates and manages a Service Worker in the background, which caches static files (CSS, JS) in the browser for significantly faster repeated page loads.\n*   **Page Statistics:** A simple system for tracking the number of views for individual pages.\n\n\n---\n**[Back to \"How It Works\" overview](/doku/how-it-works)** | **[Back to the absolute start of the demo](/doku)**",
+    "sort_key": "010.Documentation",
+    "file_path": "/var/www/cms.n0ip.eu/user/pages/010.Documentation/02.How-it-works/04.Plugin-overview/default.md",
+    "slug": "doku/how-it-works/plugins-overview",
+    "slug_path": "cms.n0ip.eu/doku/how-it-works/plugins-overview",
+    "title": "Overview of Key Plugins",
+    "path_parts": [
+      "010.Documentation",
+      "02.How-it-works",
+      "04.Plugin-overview"
+    ],
+    "_page.title": "Overview of Key Plugins",
+    "_page.slug": "plugins-overview"
+  },
+  "doku/how-it-works/user-management": {
+    "page": {
+      "title": "User and Access Management",
+      "slug": "user-management"
+    },
+    "markdown_content": "! This CMS includes a robust system for user management and restricting content access. Everything is controlled using simple `YAML` files.\n\n### Access Control\n\nThe key to securing pages is the `access` YAML block in the header of every `default.md` file. It allows you to define who can view the page.\n\n#### Common Examples:\n\n**1. Require Any Login:**\nThis is the most frequent case. Anyone who is logged in can access the page, regardless of their role.\n```yaml\naccess:\n    site.login: true\n```\n\n**2. Require Administrator Rights:**\nOnly users who have the `admin.login: true` permission set in their profile can access the page.\n```yaml\naccess:\n    admin.login: true\n```\n\n**3. Access Only for a Specific User:**\nYou can also create entirely custom rules. If you want to restrict access only to the user `zden2k`, you first define a unique right in their file `user/accounts/zden2k.yaml`:\n```yaml\n# File: user/accounts/zden2k.yaml\naccess:\n  site:\n    login: true\n  zden2k:\n    login: true # Unique right\n```\nAnd then you require this specific permission on the page:\n```yaml\n# File: default.md of the given page\naccess:\n    zden2k.login: true\n```\n\n---\n### Visibility in Menu vs. Access\n\n!!!! It is important to distinguish between visibility and access!\n\n*   **`visible: false`**\n    This `YAML` key **only hides the item from the main menu**. The page still physically exists and is accessible to anyone who knows its direct URL (and meets the `access` rules). This is suitable for pages that should only be available via a link.\n\n*   **`access:`**\n    This block **truly secures the content**. Even if someone guesses the URL, the system will not allow them to view the page if they do not meet the defined rules (and will redirect them to `/login`).\n\n#### Improved Process for Logged-In Users (Switch Account)\n\nIf you are logged in and the system denies you access, you will not see a generic error message. Instead, you will be **redirected back to `/login`** with a clear message that your **current account does not have permission**.\n\nAt the same time, a \"Switch Account\" button will be displayed. After clicking, you will be logged out, but the system **remembers the original page**. After logging in with a different, authorized account, you will be automatically redirected to the originally requested URL, which significantly improves user comfort.\n\n---\n### How to Create a New User\n\n! Adding a new user is easy thanks to the prepared interactive script. **Never attempt to create files with passwords manually!**\n\n**1. Run the script in the terminal:**\nNavigate to the CMS root directory and run the following command:\n```bash\n./utils/add_new_user.py\n```\n\n**2. Follow the instructions:**\nThe script will gradually ask you for:\n*   Username (no spaces or diacritics).\n*   Full name (e.g., John Doe).\n*   Password (will be entered hidden).\n*   Email address.\n*   Whether the user should have administrator rights.\n\n**3. Done!**\nThe script will automatically create a correctly formatted file in the `user/accounts/` directory, for example, `johndoe.yaml`. The password will be securely stored as a **bcrypt hash**.\n\n---\n**[Back to \"How It Works\" overview](/doku/how-it-works)** | **[Back to the absolute start of the demo](/doku)**",
+    "sort_key": "010.Documentation",
+    "file_path": "/var/www/cms.n0ip.eu/user/pages/010.Documentation/02.How-it-works/05.User-and-access-management/default.md",
+    "slug": "doku/how-it-works/user-management",
+    "slug_path": "cms.n0ip.eu/doku/how-it-works/user-management",
+    "title": "User and Access Management",
+    "path_parts": [
+      "010.Documentation",
+      "02.How-it-works",
+      "05.User-and-access-management"
+    ],
+    "_page.title": "User and Access Management",
+    "_page.slug": "user-management"
+  },
+  "doku/how-it-works/container-logic": {
+    "page": {
+      "title": "Container Logic and Multicolumn Index",
+      "slug": "container-logic"
+    },
+    "markdown_content": "## Explicit Containers and Subpage Index\n\nOriginally, a container (non-clickable item) was created automatically if a directory lacked a `default.md` file. You can now create an **explicit container** using YAML frontmatter, which offers these advantages:\n\n1.  It can have its own URL (`slug`).\n2.  It can have its own `access` and `visible` rules.\n3.  It **always** generates a subpage index and **ignores** any Markdown content in that `default.md` file.\n\n### YAML Configuration\n\nTo activate and configure a container, use the following structure in the frontmatter:\n\n```yaml\n# Activates the explicit container logic\ncontainer: \n  enabled: true\n\n  # Optional: Number of columns for index display\n  columns: 3 \n\n  # Optional: Display format.\n  # Options: 'none', 'num' (numbered list), 'list', 'list2' (🔹 - default).\n  format: \"list2\" \n\n  # Optional: Visibility logic for subpages\n  show_all:\n     # ONLY pages with 'visible: true' will be displayed\n     when_logout: false \n     \n     # ALL pages (that are accessible) will be displayed\n     when_login: true   \n```\n\n!!! **Important:** Even if you set `container: enabled: true`, the system still checks the **access rights** for subpages. If a user does not have access, the item will not be displayed in the index.\n\n### The `show_all` Logic\n\nThis section provides granular control over displaying pages that have `visible: false` (i.e., they are hidden from the main menu):\n\n*   **`when_logout: false`** (recommended): Logged-out users will not see any page with `visible: false` in the index.\n*   **`when_login: true`** (recommended): Logged-in users (editors, administrators) will see **all** pages in the index, including those with `visible: false`, provided they have the rights to them. This is crucial for content management.\n\n---\n**[Back to \"How It Works\" overview](/doku/how-it-works)** | **[Back to the absolute start of the demo](/doku)**",
+    "sort_key": "010.Documentation",
+    "file_path": "/var/www/cms.n0ip.eu/user/pages/010.Documentation/02.How-it-works/06.Container-logic/default.md",
+    "slug": "doku/how-it-works/container-logic",
+    "slug_path": "cms.n0ip.eu/doku/how-it-works/container-logic",
+    "title": "Container Logic and Multicolumn Index",
+    "path_parts": [
+      "010.Documentation",
+      "02.How-it-works",
+      "06.Container-logic"
+    ],
+    "_page.title": "Container Logic and Multicolumn Index",
+    "_page.slug": "container-logic"
+  },
+  "doku/how-it-works/page-anatomy": {
+    "page": {
+      "title": "Page Anatomy",
+      "slug": "page-anatomy"
+    },
+    "markdown_content": "## What constitutes a page?\n\n! Every page in this CMS consists of two main parts:\n\n1.  **Header (YAML Frontmatter):** A block of text at the very beginning of the `default.md` file, enclosed by `---`. It contains key metadata that controls the page's behavior.\n2.  **Content (Markdown):** The actual text of the page, which you write below the header. Markdown is a lightweight markup language used for styling plain text and subsequently converting it into formatted HTML text suitable for publication.\n\n<p style=\"line-height: normal;\">\nUnlike many WYSIWYG editors, Markdown does not generate unnecessary HTML clutter. Common online editors often insert formatting using nested &lt;span&gt; tags with inline styles. During subsequent edits, this code \"bloats\", is difficult to clean up, and becomes messy. Markdown, conversely, keeps the source text clean and generates the final HTML precisely and consistently.\n</p>\n\n### Key Items in the Header:\n\nHere is an example of a page's `YAML` header:\n```yaml\n---\ntitle: \"Author signature and date\"\nslug: \"author-signature\"\nauthor: \n    name: \"Zden2k\"\ndate: \"2024-10-28\"\naccess:\n    admin.login: true\n    zden2k.login: true\n---\n```\n\n#### `title`\n**The title, or heading of the page.** This is the text that appears as the main heading on the page and as the name in the menu and browser tab. It may contain diacritics and spaces.\n\n#### `slug`\n**The identifier in the URL.** This is a unique, simplified name used in the browser address. It **should not** contain spaces or diacritics. Thanks to the `slug`, you can have a clean and short URL (`.../how-it-works/page-anatomy`), even if the file is stored in a deep and complex structure. It is also the key for manual linking.\n\n### Other Useful Properties\n\n#### `author` and `date`\nIf the **Author** plugin is active, you can display a signature below the page using these two keys.\n\n*   `author.name`: The name of the author to be displayed.\n*   `date`: The publication date.\n\n#### `access`\nThis section controls the access rights to the page. You can define very specific rules.\n\n*   `admin.login: true`: Requires the logged-in user to also have **administrator rights**.\n*   `zden2k.login: true`: You can also create entirely custom rules for specific users. If the user `user` has this permission defined in their profile, they can access the page. (NOTE: Changed example user to 'user' for generic English context, original Czech example was specific).\n*   `<other>.login: true`: It requires the <other> user to be **logged in in any way** to view the page content. If not, they will be redirected to `/login`.\n\n#### `visible`\nThis key determines whether the page will be visible in the main navigation.\n\n* `visible: false`: The page will **not appear** in the menu but will still be accessible via a direct link (if the user meets the `access` rules).\n* If the key is missing or is `visible: true`, the page will be visible in the menu.\n\n---\n**[Back to \"How It Works\" overview](/doku/how-it-works)** | **[Back to the absolute start of the demo](/doku)**",
+    "sort_key": "010.Documentation",
+    "file_path": "/var/www/cms.n0ip.eu/user/pages/010.Documentation/02.How-it-works/01.Page-anatomy/default.md",
+    "slug": "doku/how-it-works/page-anatomy",
+    "slug_path": "cms.n0ip.eu/doku/how-it-works/page-anatomy",
+    "title": "Page Anatomy",
+    "path_parts": [
+      "010.Documentation",
+      "02.How-it-works",
+      "01.Page-anatomy"
+    ],
+    "_page.title": "Page Anatomy",
+    "_page.slug": "page-anatomy"
+  },
+  "doku/how-it-works/structure-and-menu": {
+    "page": {
+      "title": "Structure and Menu Item Types",
+      "slug": "structure-and-menu"
+    },
+    "markdown_content": "## How is the menu generated?\n\n!!! Directory Structure = Menu Structure\nThe left-hand menu navigation precisely corresponds to the file and directory structure in `user/pages/`. The system automatically traverses the directories and creates a hierarchy from them.\n\nThe following text tree shows how the section you are currently reading (`010.Documentation`) is structured.\n\n```\n010.Documentation/\n├── 01.First-level/\n│   ├── 01.Second-level-A/\n│   │   ├── 01.Third-level/\n│   │   │   └── default.md\n│   │   └── default.md  <-- Page: \"Second Level A\"\n│   ├── 02.Second-level-B/\n│   │   ├── default.md  <-- Page: \"Second Level B\"\n│   │   └── container-test/\n│   │       └── default.md  <-- Page: \"Container Tab Test\"\n│   └── default.md  <-- Page: \"First Level\"\n├── 02.How-It-Works/\n│   ├── 01.Page-Anatomy/\n│   ├── 02.Structure-and-Menu/\n│   │   └── default.md  <-- You are currently reading\n...\n└── default.md  <-- Section introduction page\n```\n\nThere are two basic types of items you can create:\n\n### 1. Page / Hub (Directory with `default.md`)\n\nIf a directory (e.g., `01.First-level`) contains a file named `default.md`, it becomes a **clickable link** in the menu.\n\n*   **Example:** All clickable items in our demo (`First-level`, `Second-level-A`, etc.) are directories containing `default.md`.\n*   **Usage:** Ideal for creating an introductory page for the given section, which can further link to subpages.\n\n### 2. Container (Directory without `default.md`)\n\nIf a directory (in our demo, `Container-without-index`) **does not contain** a `default.md` file, it becomes a **non-clickable heading** in the menu.\n\n*   **Example:** The `Container-without-index` item in the menu. You can hover over it, but you cannot click it.\n*   **Usage:** Perfect for visually grouping several subpages under a common name.\n\n!!!! **Important:** For advanced management of subpage display (e.g., multicolumn index, user visibility control), **create a Page / Hub** (type 1) and activate explicit container logic in the frontmatter. You can learn more in the **[Container Logic](/doku/how-it-works/container-logic)** section.\n\n---\n**[Back to \"How It Works\" overview](/doku/how-it-works)** | **[Back to the absolute start of the demo](/doku)**",
+    "sort_key": "010.Documentation",
+    "file_path": "/var/www/cms.n0ip.eu/user/pages/010.Documentation/02.How-it-works/02.Structure-and-menu/default.md",
+    "slug": "doku/how-it-works/structure-and-menu",
+    "slug_path": "cms.n0ip.eu/doku/how-it-works/structure-and-menu",
+    "title": "Structure and Menu Item Types",
+    "path_parts": [
+      "010.Documentation",
+      "02.How-it-works",
+      "02.Structure-and-menu"
+    ],
+    "_page.title": "Structure and Menu Item Types",
+    "_page.slug": "structure-and-menu"
+  },
+  "doku/how-it-works/special-routes": {
+    "page": {
+      "title": "Special Routes (Not Just Pages)",
+      "slug": "special-routes"
+    },
+    "markdown_content": "## Two Types of URL Addresses\n\nMost of the content on this website is created by pages originating from files in the `user/pages/` directory. However, there is a second category of URL addresses that are defined directly in the application core.\n\n### 1. Pages from Content\nTheir URL is derived from the directory structure and the `slug` in the file header. Everything you see in the menu and in our demo is an example.\n\n### 2. Application Routes\nThese are fixed addresses that provide application functions. They are not tied to any file in `user/pages/` and may not be visible in the menu, yet they are fully functional.\n\n**Main Examples:**\n\n*   **[/login](/login):** Displays the login form. Try clicking!\n*   **[/logout](/logout):** Logs you out after logging in.\n*   **[/profile](/profile):** Displays your profile after logging in.\n*   **`/search`:** This route is used for the search function and returns results (utilized by JavaScript).\n\nThese routes are crucial for the interactive features of the CMS.\n\n---\n**[Back to \"How It Works\" overview](/doku/how-it-works)** | **[Back to the absolute start of the demo](/doku)**",
+    "sort_key": "010.Documentation",
+    "file_path": "/var/www/cms.n0ip.eu/user/pages/010.Documentation/02.How-it-works/03.Special-routes/default.md",
+    "slug": "doku/how-it-works/special-routes",
+    "slug_path": "cms.n0ip.eu/doku/how-it-works/special-routes",
+    "title": "Special Routes (Not Just Pages)",
+    "path_parts": [
+      "010.Documentation",
+      "02.How-it-works",
+      "03.Special-routes"
+    ],
+    "_page.title": "Special Routes (Not Just Pages)",
+    "_page.slug": "special-routes"
+  },
+  "doku/how-it-works/toc-plugin": {
+    "page": {
+      "title": "TOC Plugin (Table of Contents)",
+      "slug": "toc-plugin"
+    },
+    "markdown_content": "# TOC (Table of Contents)\n\nThe **TOC** plugin is used for automatic content generation (Table of Contents) from page headings and for navigation.\n\nIt is designed to be fully **automatic** and requires minimal intervention.\n\n## Enabling and Disabling\n\n| Option | Description | Default behavior (without configuration) |\n| :--- | :--- | :--- |\n| `toc: true` | Enables content generation. The plugin automatically inserts the TOC before the first H1 heading. | **Disabled** (if no H2, H3, H4 headings are defined) |\n| `toc: false` | Explicitly disables content generation even if there are headings on the page. | |\n\n## Advanced Configuration (In YAML Frontmatter)\n\nThe plugin allows detailed configuration of the TOC's display and behavior. All options are defined under the `toc` key in the page's frontmatter.\n\n### Configuration Example\n\n```yaml\n---\ntitle: Page with Advanced TOC\ntoc:\n    enabled: true\n    floating: true\n    baselevel: 2\n    headinglevel: 5\n---\n```\n\n### Options Overview\n\n| Option | Type | Default Value | Description |\n| :--- | :--- | :--- | :--- |\n| `enabled` | bool | `false` | Main switch. Set to `true` to enable TOC generation. |\n| `floating` | bool | `false` | Enables floating TOC. A CSS class is added to the element, which can position it, for example, on the right side of the page. |\n| `baselevel` | int | `None` | Sets the **minimum** heading level to be included in the TOC (e.g., `2` for H2). |\n| `headinglevel` | int | `None` | Sets the **maximum** heading level to be included in the TOC (e.g., `4` for H4). |\n\n## Controlling Heading Levels\n\nThe plugin works with a range of headings defined by `baselevel` and `headinglevel`.\n\n*   `baselevel` (bottom range) is typically `2` (for `<h2>`).\n*   `headinglevel` (top range) is typically `4` (for `<h4>`).\n\nIf neither `baselevel` nor `headinglevel` is defined, the plugin uses its internal default settings.\n\n### Example Heading that will be included (H2-H5)\n```yaml\ntoc:\n    baselevel: 2\n    headinglevel: 5\n```\n\n```markdown\n## This heading will be included\n### This one too will be included\n##### And this one as well\n###### But this one will NOT be included (because it is H6)\n```\n\n> [!TIP|=] TIP: For consistent output and maximum control, always explicitly define `baselevel` and `headinglevel`.\n\n---\n**[Back to \"How It Works\" overview](/doku/how-it-works)** | **[Back to the absolute start of the demo](/doku)**",
+    "sort_key": "010.Documentation",
+    "file_path": "/var/www/cms.n0ip.eu/user/pages/010.Documentation/02.How-it-works/07.TOC-plugin/default.md",
+    "slug": "doku/how-it-works/toc-plugin",
+    "slug_path": "cms.n0ip.eu/doku/how-it-works/toc-plugin",
+    "title": "TOC Plugin (Table of Contents)",
+    "path_parts": [
+      "010.Documentation",
+      "02.How-it-works",
+      "07.TOC-plugin"
+    ],
+    "_page.title": "TOC Plugin (Table of Contents)",
+    "_page.slug": "toc-plugin"
+  },
+  "doku/first-level/second-level-a/third-level": {
+    "page": {
+      "title": "Third Level - End",
+      "slug": "third-level"
+    },
+    "markdown_content": "## You are at the end of Branch A.\n\n! This is the deepest page in this branch. You can return using the menu above or the links at the top of the page (i.e., the `breadcrumb navigation`).\n\n!! Notice that pages are created using a directory structure and display the content of `default.md` files, which contain the page content in `Markdown syntax`, and auxiliary page variables in `Yaml`.\n\nThe following text tree shows how the section you are currently reading (`010.Dokumentace`) is structured.\n\n```\nuser/pages/010.Documentation/\n├── 01.First-level/\n│   ├── 01.Second-level-A/\n│   │   ├── 01.Third-level/\n│   │   │   └── default.md  <-- You are currently reading this page (Slug: third-level)\n│   │   └── default.md      <-- Page: \"Second Level A\"\n│   ├── 02.Second-level-B/\n│   │   ├── default.md      <-- Page: \"Second Level B\"\n│   │   └── container-test/\n│   │       └── default.md  <-- Container page with an overview of subpages\n│   └── default.md          <-- Page: \"First Level\"\n├── 02.How-It-Works/\n│   ├── 01.Page-Anatomy/\n│   ... (other sub-sections with default.md)\n│   └── default.md          <-- Page: \"How It Works\"\n└── default.md              <-- Section introduction page (Slug: documentation)\n```\n\n### Want to see something else?\nManual links are not limited to the path forward. You can link anywhere.\n\n**[Let's jump straight to the Branch B hub!](/doku/first-level/second-level-b)**\n\n---\n### You are at the end of the demo\n\nIf you have explored everything, you can easily return to the introduction page of this section.\n\n**[Go to the start of the \"Documentation\" demo](/doku)**",
+    "sort_key": "010.Documentation",
+    "file_path": "/var/www/cms.n0ip.eu/user/pages/010.Documentation/01.First-level/01.Second-level-A/01.Third-level/default.md",
+    "slug": "doku/first-level/second-level-a/third-level",
+    "slug_path": "cms.n0ip.eu/doku/first-level/second-level-a/third-level",
+    "title": "Third Level - End",
+    "path_parts": [
+      "010.Documentation",
+      "01.First-level",
+      "01.Second-level-A",
+      "01.Third-level"
+    ],
+    "_page.title": "Third Level - End",
+    "_page.slug": "third-level"
+  },
+  "doku/first-level/second-level-b/container-test": {
+    "page": {
+      "title": "Container Tab",
+      "slug": "container-test",
+      "container": {
+        "enabled": true,
+        "columns": 1,
+        "format": "num",
+        "show_all": {
+          "when_logout": true,
+          "when_login": true
+        }
+      },
+      "visible": true
+    },
+    "markdown_content": "This text should not be displayed",
+    "sort_key": "010.Documentation",
+    "file_path": "/var/www/cms.n0ip.eu/user/pages/010.Documentation/01.First-level/02.Second-level-B/container-tab/default.md",
+    "slug": "doku/first-level/second-level-b/container-test",
+    "slug_path": "cms.n0ip.eu/doku/first-level/second-level-b/container-test",
+    "title": "Container Tab",
+    "path_parts": [
+      "010.Documentation",
+      "01.First-level",
+      "02.Second-level-B",
+      "container-tab"
+    ],
+    "_page.title": "Container Tab",
+    "_page.slug": "container-test",
+    "_page.container.enabled": true,
+    "_page.container.columns": 1,
+    "_page.container.format": "num",
+    "_page.container.show_all.when_logout": true,
+    "_page.container.show_all.when_login": true,
+    "_page.visible": true
+  },
+  "doku/first-level/second-level-b/container-test/text-formatting": {
+    "page": {
+      "title": "Text Formatting",
+      "slug": "text-formatting",
+      "toc": {
+        "enabled": true,
+        "floating": true,
+        "baselevel": 1,
+        "headinglevel": 6
+      }
+    },
+    "markdown_content": "!! This page demonstrates how you can write `Headings`, use `basic text formatting`, and create various types of `lists` in the CMS.\n\n# H1 Heading `40px`\n## H2 Heading `32px`\n### H3 Heading `28px`\n#### H4 Heading `24px`\n##### H5 Heading `20px`\n###### H6 Heading `16px`\n\n## Basic Formatting\n* **Bold text:** `**Bold text**`\n* _Italics:_ `_Italics_`\n* ~~Strikethrough:~~ `~~Strikethrough~~`\n* Inline `Inline Code`\n\n### HTML Semantic Text Elements\n\n<abbr>I18N</abbr> `<abbr>`\n\n<cite>Citation</cite> `<cite>`\n\n<kbd>Ctrl + S</kbd> `<kbd>`\n\nText<sup>Superscripted</sup> `<sup>`\n\nText<sub>Subscripted</sub> `<sub>`\n\n<u>Underlined</u> `<u>`\n\n<mark>Highlighted</mark> `<mark>`\n\n<time>20:14</time> `<time>`\n\n<var>x = y + 2</var> `<var>`\n\n## Lists\n* list item 1\n* list item 2\n    * list item 2.1\n    * list item 2.2\n    * list item 2.3\n* list item 3\n\n```markdown\n* list item 1\n* list item 2\n    * list item 2.1\n    * list item 2.2\n    * list item 2.3\n* list item 3\n```\n\n## Numbered Lists\n1.  Numbered list\n2.  Item 2\n    *   Nested list\n    *   Another nested item\n3.  Item 3\n\n```markdown\n1. list item 1\n1. list item 2\n    1. list item 2.1\n    1. list item 2.2\n    1. list item 2.3\n1. list item 3\n```\n\n## Todo Lists\n* [x] Lorem ipsum dolor sit amet, consectetur adipiscing elit\n* [x] Nulla lobortis egestas semper\n* [ ] Vestibulum convallis sit amet nisi a tincidunt\n    * [x] In scelerisque nibh non dolor mollis congue sed et metus\n    * [ ] Praesent sed risus massa\n* [ ] Nulla vel eros venenatis, imperdiet enim id, faucibus nisi\n\n\n```\n* [x] Lorem ipsum dolor sit amet, consectetur adipiscing elit\n* [x] Nulla lobortis egestas semper\n* [ ] Vestibulum convallis sit amet nisi a tincidunt\n  * [x] In scelerisque nibh non dolor mollis congue sed et metus\n  * [ ] Praesent sed risus massa\n* [ ] Nulla vel eros venenatis, imperdiet enim id, faucibus nisi\n```\n\n---\n**[Back to the absolute start of the demo](/doku)**",
+    "sort_key": "010.Documentation",
+    "file_path": "/var/www/cms.n0ip.eu/user/pages/010.Documentation/01.First-level/02.Second-level-B/container-tab/01.Text-formatting/default.md",
+    "slug": "doku/first-level/second-level-b/container-test/text-formatting",
+    "slug_path": "cms.n0ip.eu/doku/first-level/second-level-b/container-test/text-formatting",
+    "title": "Text Formatting",
+    "path_parts": [
+      "010.Documentation",
+      "01.First-level",
+      "02.Second-level-B",
+      "container-tab",
+      "01.Text-formatting"
+    ],
+    "_page.title": "Text Formatting",
+    "_page.slug": "text-formatting",
+    "_page.toc.enabled": true,
+    "_page.toc.floating": true,
+    "_page.toc.baselevel": 1,
+    "_page.toc.headinglevel": 6
+  },
+  "doku/first-level/second-level-b/container-test/emoji": {
+    "page": {
+      "title": "Emoji Embedding",
+      "slug": "emoji"
+    },
+    "markdown_content": "!= This website has an active **Emoji embedding plugin**!\nThis plugin automatically converts shortcodes into emoji images. It works very simply – just type the code surrounded by colons.\n\n!!= Note that the website is responsive, and the size of the Emojis adapts to the page width and text. Therefore, their size is different when displayed on a PC versus a mobile device.\n\n### How to Write Emojis?\n\nTo insert an emoji, simply type it's text shortcode, you can find on [emojiguide](https://emojiguide.org/) page. Here are a few examples:\n\n*   For a smile, type `:smile:` --> :smile: or 🙂 or &#128578;\n*   For a heart, type `:heart:` --> :heart: or ❤️  or &#9829;\n*   For a rocket, type `:rocket:` --> :rocket: or 🚀 or &#128640;\n*   For a thumbs up, type `:thumbsup:` --> :thumbsup: or 👍 or &#128077;\n\n### Size Levels\n<p>If the Emojis are too large, you can adjust the size in markdown using classes:</p>\n:sweat_smile:{.emoji-size--ultra_big}\n:sweat_smile:{.emoji-size--very_big}\n:sweat_smile:{.emoji-size--big}\n:sweat_smile:{.emoji-size--normal}\n:sweat_smile:{.emoji-size--small}\n:sweat_smile:{.emoji-size--very_small}\n:sweat_smile:{.emoji-size--ultra_small}\n\nThe system supports a wide range of standard emoji shortcodes, which you may know from platforms like GitHub, Slack, or Discord.\n\n!!! Experiment and have fun! Try for example: `:tada:`, `:coral:` or `:octopus:` &nbsp; :tada: :coral: :octopus:\n\n---\n**[Back to the absolute start of the demo](/doku)**",
+    "sort_key": "010.Documentation",
+    "file_path": "/var/www/cms.n0ip.eu/user/pages/010.Documentation/01.First-level/02.Second-level-B/container-tab/05.Emoji/default.md",
+    "slug": "doku/first-level/second-level-b/container-test/emoji",
+    "slug_path": "cms.n0ip.eu/doku/first-level/second-level-b/container-test/emoji",
+    "title": "Emoji Embedding",
+    "path_parts": [
+      "010.Documentation",
+      "01.First-level",
+      "02.Second-level-B",
+      "container-tab",
+      "05.Emoji"
+    ],
+    "_page.title": "Emoji Embedding",
+    "_page.slug": "emoji"
+  },
+  "doku/first-level/second-level-b/container-test/plugin-samples": {
+    "page": {
+      "title": "Plugin Samples",
+      "slug": "plugin-samples"
+    },
+    "markdown_content": "## Notifications and Visual Elements\n\n! Using plugins, you can insert special visual elements into your pages. For example, `Alerts`, `Notices`, and others. Pay attention to the syntax used for writing them, and notice that some visual elements have the option to close them with an 'X'.\n\nVisual elements can \"enrich\" and improve the readability of pages for users.\n\n### Notices\n\n!= This is an informational message (info).\n\n!!= This is a success message (success).\n\n!!!+= This is a warning (warning) with a close button.\n\n!!!!+= This is a danger (danger) with a close button.\n\n### Alerts\n\n|= This is an informational alert.\n\n||||+= This is a danger alert with a close button.\n\n---\n**[Back to the absolute start of the demo](/doku)**",
+    "sort_key": "010.Documentation",
+    "file_path": "/var/www/cms.n0ip.eu/user/pages/010.Documentation/01.First-level/02.Second-level-B/container-tab/02.Plugin-examples/default.md",
+    "slug": "doku/first-level/second-level-b/container-test/plugin-samples",
+    "slug_path": "cms.n0ip.eu/doku/first-level/second-level-b/container-test/plugin-samples",
+    "title": "Plugin Samples",
+    "path_parts": [
+      "010.Documentation",
+      "01.First-level",
+      "02.Second-level-B",
+      "container-tab",
+      "02.Plugin-examples"
+    ],
+    "_page.title": "Plugin Samples",
+    "_page.slug": "plugin-samples"
+  },
+  "doku/first-level/second-level-b/container-test/code-blocks": {
+    "page": {
+      "title": "Code Blocks",
+      "slug": "code-blocks"
+    },
+    "markdown_content": "## Displaying Code\n\n! Inserting code snippets is simple. Code blocks are written in a proportional font and are equipped with syntax highlighting (using the `highlight` plugin) for improved readability.\n\n### File Header (Code Header Plugin)\nYou can add a header to code blocks, for example, for the file name that the code block belongs to. The syntax can be written in two ways, abbreviated using the parser:\n€€€/etc/ansible/ansible.cfg\n[defaults]\nansible_managed = Ansible managed: {file} modified by {uid} on {host}\n€€€\n\nThe same, but written in HTML:\n\n<div class=\"codeblock\"><div class=\"codehead\">/etc/ansible/ansible.cfg</div>\n<pre><code>[defaults]\nansible_managed = Ansible managed: {file} modified by {uid} on {host}\n</code></pre>\n</div>\n\n### Code Block Without a Header\n#### YAML\n```yaml\n- name: Example from Ansible\n  debug:\n    var: ansible_facts.packages\n```\n\n#### Python\n```python\ndef main():\n    print(\"Hello, World!\")\n\nif __name__ == \"__main__\":\n    main()\n```\n\n\n---\n**[Back to the absolute start of the demo](/doku)**",
+    "sort_key": "010.Documentation",
+    "file_path": "/var/www/cms.n0ip.eu/user/pages/010.Documentation/01.First-level/02.Second-level-B/container-tab/03.Code-blocks/default.md",
+    "slug": "doku/first-level/second-level-b/container-test/code-blocks",
+    "slug_path": "cms.n0ip.eu/doku/first-level/second-level-b/container-test/code-blocks",
+    "title": "Code Blocks",
+    "path_parts": [
+      "010.Documentation",
+      "01.First-level",
+      "02.Second-level-B",
+      "container-tab",
+      "03.Code-blocks"
+    ],
+    "_page.title": "Code Blocks",
+    "_page.slug": "code-blocks"
+  },
+  "doku/first-level/second-level-b/container-test/image-embedding": {
+    "page": {
+      "title": "Image Embedding",
+      "slug": "image-embedding"
+    },
+    "markdown_content": "## Images in Content\n\n! You can easily embed images into your pages. Just upload them to the same directory as your `default.md` file.\n\n### Basic Syntax\nThe basic syntax for displaying an image is:\n\n```markdown\n![Image Description](file-name.jpg)\n```\n\n### Resizing and Alignment\n!! This CMS has a useful function for resizing and aligning images directly within the Markdown link. Simply append the parameter `?width=yyy`, where `yyy` is the desired width in pixels. You can also use `&align=left/right/center`.\n\n**Example (normal image size):**\n![Pacman](pacman.gif)\n\n**Example (image size 200px, aligned left):**\n\n<!-- You can define width, height, and align=left/right/center here -->\n![Pacman](pacman02.gif?width=200&align=left)\n\nOf course, you can also use a full path and the standard `<img>` tag with custom attributes:\n<img alt=\"Gravit\" src=\"/user/pages/010.Documentation/01.First-level/02.Second-level-B/container-tab/04.Images/linux.png\" width=\"75\" height=\"auto\" class=\"align-right\">\n\n---\n**[Back to the absolute start of the demo](/doku)**",
+    "sort_key": "010.Documentation",
+    "file_path": "/var/www/cms.n0ip.eu/user/pages/010.Documentation/01.First-level/02.Second-level-B/container-tab/04.Images/default.md",
+    "slug": "doku/first-level/second-level-b/container-test/image-embedding",
+    "slug_path": "cms.n0ip.eu/doku/first-level/second-level-b/container-test/image-embedding",
+    "title": "Image Embedding",
+    "path_parts": [
+      "010.Documentation",
+      "01.First-level",
+      "02.Second-level-B",
+      "container-tab",
+      "04.Images"
+    ],
+    "_page.title": "Image Embedding",
+    "_page.slug": "image-embedding"
+  }
+}

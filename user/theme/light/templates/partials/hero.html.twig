@@ -1,0 +1,15 @@
+<section class="hero-section">
+    <div class="hero-content">
+        <div class="container text-centered">
+            <h1 class="hero-title">
+                {{ page.hero.title }}
+            </h1>
+            <p class="hero-subtitle">
+                {{ page.hero.subtitle }}
+            </p>
+            {% if page.hero.button_url %}
+                <a class="hero-button" href="{{ page.hero.button_url }}">{{ page.hero.button_text }}</a>
+            {% endif %}
+        </div>
+    </div>
+</section>
