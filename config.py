@@ -1,4 +1,4 @@
-SITE_IDENTIFIKATOR = "cms.n0ip.eu"
+SITE_IDENTIFIKATOR = "gravit.huan.cz"
 
 THEME_SKIN = "user/theme/light"
 SECRET_KEY = "your-very-secret-key-that-is-long-and-random" # IMPORTANT: THIS IS FOR DEVELOPMENT ONLY! For production, generate a secure key (e.g., tr -dc A-Za-z0-9 </dev/urandom | head -c 64) and load it from environment variables.
