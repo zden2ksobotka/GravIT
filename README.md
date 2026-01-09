@@ -1,2 +1,2 @@
 # GravIT
-Simple [CMS](https://gravit.huan.cz/doku) is built on the philosophy of "simplicity".
+Simple [CMS](https://gravit.huan.cz/doku) is built on the philosophy of "simplicity". Unlike heavy content management systems, almost everything that would reduce speed or add unnecessary complexity has been omitted. Content, configuration, and users are all defined in a simple schema of text files using Markdown and YAML flat-file principle. This guarantees lightning-fast response and maximum transparency.
