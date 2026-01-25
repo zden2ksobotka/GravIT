@@ -167,7 +167,7 @@ server {
         access_log off;
     }
 
-    location ~* ^/user/(pages|accounts)/.*\.(md|yaml)$ {
+    location ~* ^/user/(accounts|pages|accounts|plugin)/.*\.(md|yaml|yml|txt)$ {
         deny all;
     }
 
